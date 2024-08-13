@@ -31,7 +31,7 @@ function extract_levels_ldtk({ name, json }) {
         let layer = level['layerInstances'][0]
         let w = layer['__cWid']
         let h = layer['__cHei']
-        let tiles = layer['gridTiles'].map(tile => {
+        let tiles = layer['autoLayerTiles'].map(tile => {
             let px = tile['px']
             let src = tile['src']
 

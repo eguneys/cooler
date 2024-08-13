@@ -42,8 +42,10 @@ function mega_expand(v: number[]) {
     [w, h] = (wh === 0 ? [16, 16] :
               (wh === 1 ? [32,16] :
                (wh === 2 ? [80,80] :
+                (wh === 3 ? [160, 160] :
                 (wh === 4 ? [80, 30] :
-                 [0, 0]))))
+                  (wh === 5 ? [32, 32] :
+                 [0, 0]))))))
 
   let [pw, ph] = [w, h]
 
@@ -81,7 +83,7 @@ type LevelInfo = {
   name: string,
   w: number,
   h: number,
-  te: LevelTile[][]
+  te: LevelTile[]
 }
 
 function decon_levels(levels: any): LevelInfo[] {
@@ -135,10 +137,14 @@ class Content {
   info!: ContentInfo[]
 
   levels!: LevelInfo[]
+  tiles!: ContentPack
 
   async load() {
     this.image = await load_image(content_page0)
     this.info = decon(content_con0)
+
+    this.tiles = this.info.find(_ => _.name === 'tiles')!.packs[0]
+
 
     this.levels = decon_levels(levels_json)
     console.log(this.levels)

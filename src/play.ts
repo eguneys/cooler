@@ -28,6 +28,17 @@ export default abstract class Play {
     this._scheds = []
   }
 
+
+  many<T extends Play>(ctor: { new(): T}): T[] {
+    return this.objects.filter(_ => _ instanceof ctor) as T[]
+  }
+
+
+
+  one<T extends Play>(ctor: { new(): T}): T | undefined {
+    return this.objects.find(_ => _ instanceof ctor) as T | undefined
+  }
+
   _make<T extends Play>(ctor: { new (): T }, data: any) {
     let res = new ctor()._set_data(data).init()
     return res
@@ -99,6 +110,7 @@ export default abstract class Play {
     this._pre_draw(graphics)
     this.objects.forEach(_ => _.draw(graphics))
     this._draw(graphics)
+    this._post_draw(graphics)
   }
 
 
@@ -107,6 +119,7 @@ export default abstract class Play {
   _update() {}
   _draw(_: Graphics) {}
   _pre_draw(_: Graphics) {}
+  _post_draw(_: Graphics) {}
 }
 
 export type SOrigin = 'c' | 'bc' | 'tl'

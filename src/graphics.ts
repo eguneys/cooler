@@ -53,12 +53,25 @@ export default class Graphics {
   push_xy(x: number, y: number) {
     let { ctx } = this
     ctx.save()
-    ctx.translate(x, y)
+    ctx.translate(Math.floor(x), Math.floor(y))
   }
 
   pop() {
     let { ctx } = this
     ctx.restore()
+  }
+
+
+  tile(n: number, x: number, y: number) {
+    let { fx, fy, sx, sy } = Content.tiles
+
+    let dx = x - fx
+    let dy = y - fy
+
+    let nx = (n % 20) * 8
+    let ny = Math.floor(n / 20) * 8
+
+    this.spr(dx, dy, sx + nx, sy + ny, 8, 8)
   }
 
   anim(anim: Anim, x: number, y: number, scale_x = 1, scale_y = 1) {
