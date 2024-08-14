@@ -154,6 +154,11 @@ class MapLoader extends Play {
     cam_y = 0
     cam_zone_x = 0
     cam_zone_y = 0 
+    cam_shake_x = 0
+    cam_shake_y = 0
+
+    shake_dx = 0
+    shake_dy = 0
 
     _init() {
 
@@ -384,6 +389,11 @@ class MapLoader extends Play {
                 this.cam_x = Math.min(Math.max(0, this.cam_x), this.w * 8 - 320)
 
             }
+
+            if (p.shoot_cool > 0) {
+                this.shake_dx = -1
+                this.shake_dy = -.2
+            }
         }
 
         let bs = this.many(Bullet)
@@ -411,10 +421,24 @@ class MapLoader extends Play {
 
 
         })
+
+
+        if (this.shake_dx !== 0) {
+            this.cam_shake_x = this.shake_dx * Math.sin(2 * Math.PI * 0.2 * this.life) 
+            this.cam_shake_x += this.shake_dx * Math.random() * 1
+        }
+         if (this.shake_dy !== 0) {
+            this.cam_shake_y = this.shake_dy * Math.cos(2 * Math.PI * 100 * Time.dt)
+            this.cam_shake_y += this.shake_dy * Math.random()
+        }
+        
+
+        this.shake_dx = appr(this.shake_dx, 0, Time.dt * 100)
+        this.shake_dy = appr(this.shake_dy, 0, Time.dt * 100)
     }
 
     _pre_draw(g: Graphics) {
-        g.push_xy(-this.cam_x, -this.cam_y)
+        g.push_xy(-this.cam_x + this.cam_shake_x, -this.cam_y + this.cam_shake_y)
     }
 
     _post_draw(g: Graphics) {
@@ -622,7 +646,7 @@ class Player extends HasPosition {
             _.dx = this.facing * max_dx * 2.5
             _.anim.scale_x = Math.sign(_.dx)
             _.base_x = _.x
-            _.distance_long = this.dx === 0 ? 60 : 130
+            _.distance_long = (this.dx === 0 ? 60 : 110) + Math.random() * 30
             this.shoot_cool = .2
         }
         this.shoot_cool = appr(this.shoot_cool, 0, Time.dt)
@@ -647,7 +671,7 @@ class Bullet extends HasPosition {
 
     _init() {
         this.anim = this.make(Anim, { name: 'bullet', duration: .1 })
-        this.dy = (1 - Math.random()) * 4
+        this.dy = (0.5 - Math.random()) * 40
     }
 
 
@@ -668,7 +692,7 @@ class Bullet extends HasPosition {
 class BulletFlash extends HasPosition {
 
     _init() {
-        this.anim = this.make(Anim, { name: 'bullet', tag: 'flash' + (Math.random() < 0.2 ? '2': ''), duration: .16 })
+        this.anim = this.make(Anim, { name: 'bullet', tag: 'flash' + (Math.random() < 0.4 ? '2': ''), duration: .16 })
     }
 
     _update() {
