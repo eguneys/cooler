@@ -347,9 +347,10 @@ class MapLoader extends Play {
                 p.rem_x = (dx % 1) * sign
 
                 let v_damping = p.dy === 0 ? 1 : 0.8
+                let s_damping = p.shoot_cool > 0 ? 0.66 : 1
 
                 for (let i = 0; i < dx; i++) {
-                    let dxx = sign * Time.dt * h_accel * v_damping
+                    let dxx = sign * Time.dt * h_accel * v_damping * s_damping
                     if (this.is_solid_xywh(p, dxx, 0)) {
                         p.collide_h = sign
                         p.dx = 0
@@ -369,11 +370,11 @@ class MapLoader extends Play {
                 if (this.cam_zone_x > (p.x + 8) + 30) {
                     this.cam_zone_x = (p.x + 8) + 30
                 }
-                if (this.cam_zone_y < p.y - 8) {
-                    this.cam_zone_y = p.y - 8
+                if (this.cam_zone_y < (p.y - 8) - 30) {
+                    this.cam_zone_y = (p.y - 8) - 30
                 }
-                if (this.cam_zone_y > p.y + 8) {
-                    this.cam_zone_y = p.y + 8
+                if (this.cam_zone_y > (p.y + 8) + 30) {
+                    this.cam_zone_y = (p.y + 8) + 30
                 }
 
                 let show_more = p.dx < 0 ? -170 : p.dx > 0 ? -150 : -160
@@ -600,14 +601,28 @@ class Player extends HasPosition {
             }
         }
 
+        if (this.jumping) {
+            this.anim.scale_x = appr(this.anim.scale_x, this.facing * 0.9, Time.dt * 0.8)
+            this.anim.scale_y = appr(this.anim.scale_y, 1.1, Time.dt * 0.8)
+        } else {
+            this.anim.scale_x = appr(this.anim.scale_x, this.facing, Time.dt)
+            this.anim.scale_y = appr(this.anim.scale_y, 1, Time.dt)
+        }
 
         if (!this.ledge_grab && !this.knoll_climb && is_shoot && this.shoot_cool === 0) {
+
+            let f = this.parent!.make(BulletFlash)
+            f.x = this.x + this.dx
+            f.y = this.y - Math.random() * 8
+            f.anim.scale_x = this.facing
+
             let _ = this.parent!.make(Bullet)
             _.x = this.x
-            _.y = this.y - Math.random() * 8
+            _.y = f.y
             _.dx = this.facing * max_dx * 2.5
             _.anim.scale_x = Math.sign(_.dx)
             _.base_x = _.x
+            _.distance_long = this.dx === 0 ? 60 : 130
             this.shoot_cool = .2
         }
         this.shoot_cool = appr(this.shoot_cool, 0, Time.dt)
@@ -615,14 +630,16 @@ class Player extends HasPosition {
         this.pre_grounded = this.grounded
         this.pre_y = this.y
 
-        this.anim.x = - this.shoot_cool * this.facing * 4
+        this.anim.x = - this.shoot_cool * this.facing * 12
     }
 }
 
 class Bullet extends HasPosition {
 
+    w = 12
     h = 4
     base_x = 0
+    distance_long = 120
 
     get distance() {
         return Math.abs(this.x - this.base_x)
@@ -630,11 +647,13 @@ class Bullet extends HasPosition {
 
     _init() {
         this.anim = this.make(Anim, { name: 'bullet', duration: .1 })
+        this.dy = (1 - Math.random()) * 4
     }
 
 
     _update() {
-        if (this.distance > 100 || this.collide_h !== 0) {
+        this.anim.y += this.dy * Time.dt
+        if (this.distance > this.distance_long || this.collide_h !== 0) {
 
             let _ = this.parent!.make(BulletHit, { name: 'bullet', tag: 'hit' })
             _.x = this.x
@@ -644,6 +663,23 @@ class Bullet extends HasPosition {
         }
     }
 }
+
+
+class BulletFlash extends HasPosition {
+
+    _init() {
+        this.anim = this.make(Anim, { name: 'bullet', tag: 'flash' + (Math.random() < 0.2 ? '2': ''), duration: .16 })
+    }
+
+    _update() {
+
+        if (this.life >= .16) {
+            this.remove()
+        }
+    }
+}
+
+
 
 class BulletHit extends HasPosition {
 
