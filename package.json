@@ -11,7 +11,7 @@
     "devc": "concurrently \"pnpm content\" \"pnpm dev\"",
     "content": "node content.js",
     "lint": "tsc --noEmit --watch",
-    "build": "pnpm clean && tsc && vite build && vite-bundle-visualizer && roadroller ./dist/assets/index.min.js -o ./dist/assets/index.min.js",
+    "build": "pnpm clean && tsc && vite build && vite-bundle-visualizer",
     "preview": "vite build && vite preview --port=3000"
   },
   "devDependencies": {

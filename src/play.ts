@@ -13,9 +13,10 @@ export default abstract class Play {
 
   life!: number
   objects: Play[]
-  pools: [Play, number][]
 
   _scheds: [number, () => void][]
+
+  parent?: Play
 
   sched(n: number, p: () => void) {
     this._scheds.push([n, p])
@@ -23,7 +24,6 @@ export default abstract class Play {
 
 
   constructor() {
-    this.pools = []
     this.objects = []
     this._scheds = []
   }
@@ -41,6 +41,7 @@ export default abstract class Play {
 
   _make<T extends Play>(ctor: { new (): T }, data: any) {
     let res = new ctor()._set_data(data).init()
+    res.parent = this
     return res
   }
 
@@ -50,26 +51,16 @@ export default abstract class Play {
     return res
   }
 
-  pool<T extends Play>(ctor: { new (): T }, data: any = {}, n = 7) {
-    let res = this._make(ctor, data)
-    this.objects.push(res)
-    this.pools.push([res, n])
-
-    return res
-  }
-
-  remove(p: Play) {
+  remove(p?: Play) {
+    if (!p) {
+      this.parent?.remove(this)
+      return
+    }
     let i = this.objects.indexOf(p)
     if (i === -1) {
       throw 'noscene rm'
     }
     this.objects.splice(i, 1)
-
-    i = this.pools.findIndex(([o]) => o === p)
-    if (i !== -1) {
-      this.pools.splice(i, 1)
-    }
-
   }
 
   init() {
@@ -93,15 +84,6 @@ export default abstract class Play {
       }
       return [n - Time.dt, p]
     }).filter(_ => _[0] > 0)
-
-    this.pools.slice(0).forEach(([o, l]) => {
-      let ls = this.pools.filter(_ => _[0].constructor.name === o.constructor.name)
-
-      if (ls.length > l) {
-        let o = ls[0][0]
-        this.remove(o)
-      }
-    })
 
     this._update()
   }
@@ -146,7 +128,7 @@ export class Anim extends Play {
   }
 
   get duration() {
-    return this.data.duration ?? 400
+    return this.data.duration ?? .4
   }
 
   private get tag() {
@@ -229,7 +211,7 @@ export class Anim extends Play {
 
     let d_from_to = to - from
 
-    this.__elapsed += Time.dt * 1000
+    this.__elapsed += Time.dt
 
     if (this.__elapsed >= duration_single_frame) {
       this.__elapsed -= duration_single_frame

@@ -280,7 +280,6 @@ class MapLoader extends Play {
                     p.y = s[1] - 8
                     p.dy = 0
                 }
-                return
             }
 
             if (p.knoll_climb !== undefined) {
@@ -293,98 +292,124 @@ class MapLoader extends Play {
                     p.dy = 0
 
                 }
-                return
-            }
+            } else {
 
 
 
-            let G = _G
+                let G = _G
 
-            {
-                let sign = Math.sign(p.dy)
-                let dy = Math.abs(p.dy + p.rem_y)
-                p.rem_y = (dy % 1) * sign
+                {
+                    let sign = Math.sign(p.dy)
+                    let dy = Math.abs(p.dy + p.rem_y)
+                    p.rem_y = (dy % 1) * sign
 
 
-                for (let di = 0; di < dy; di += 1) {
-                    let dyy = 1 / 2 * sign * Time.dt * Time.dt * v_accel
-                    if (this.is_solid_xywh(p, 0, dyy)) {
-                        p.collide_v = sign
-                        p.dy /= 2
-                        break
-                    } else {
-                        p.collide_v = 0
-                        p.y += dyy;
+                    for (let di = 0; di < dy; di += 1) {
+                        let dyy = 1 / 2 * sign * Time.dt * Time.dt * v_accel
+                        if (this.is_solid_xywh(p, 0, dyy)) {
+                            p.collide_v = sign
+                            p.dy /= 2
+                            break
+                        } else {
+                            p.collide_v = 0
+                            p.y += dyy;
 
-                        {
-                            let dii = G
-                            let sign = 1
+                            {
+                                let dii = G
+                                let sign = 1
 
-                            p.dy += sign * dii * Time.dt
+                                p.dy += sign * dii * Time.dt
+                            }
                         }
                     }
                 }
-            }
 
-            if (p.dy > -50) {
-                let dy = (fall_max_accel_y * G)
-                let sign = 1
+                if (p.dy > -50) {
+                    let dy = (fall_max_accel_y * G)
+                    let sign = 1
 
-                for (let di = 0; di < dy; di += 1) {
-                    let dyy = 1 / 2 * sign * Time.dt * Time.dt
-                    if (this.is_solid_xywh(p, 0, dyy)) {
-                        p.collide_v = sign
-                        p.dy = 0
-                        break
-                    } else {
-                        p.collide_v = 0
-                        p.y += dyy
+                    for (let di = 0; di < dy; di += 1) {
+                        let dyy = 1 / 2 * sign * Time.dt * Time.dt
+                        if (this.is_solid_xywh(p, 0, dyy)) {
+                            p.collide_v = sign
+                            p.dy = 0
+                            break
+                        } else {
+                            p.collide_v = 0
+                            p.y += dyy
+                        }
                     }
                 }
+
+
+                let sign = Math.sign(p.dx)
+                let dx = Math.abs(p.dx + p.rem_x)
+                p.rem_x = (dx % 1) * sign
+
+                let v_damping = p.dy === 0 ? 1 : 0.8
+
+                for (let i = 0; i < dx; i++) {
+                    let dxx = sign * Time.dt * h_accel * v_damping
+                    if (this.is_solid_xywh(p, dxx, 0)) {
+                        p.collide_h = sign
+                        p.dx = 0
+                        break
+                    } else {
+                        p.collide_h = 0
+                        p.x += dxx
+                    }
+                }
+
+
+
+
+                if (this.cam_zone_x < (p.x - 8) - 30) {
+                    this.cam_zone_x = (p.x - 8) - 30
+                }
+                if (this.cam_zone_x > (p.x + 8) + 30) {
+                    this.cam_zone_x = (p.x + 8) + 30
+                }
+                if (this.cam_zone_y < p.y - 8) {
+                    this.cam_zone_y = p.y - 8
+                }
+                if (this.cam_zone_y > p.y + 8) {
+                    this.cam_zone_y = p.y + 8
+                }
+
+                let show_more = p.dx < 0 ? -170 : p.dx > 0 ? -150 : -160
+                this.cam_x = lerp(this.cam_x, this.cam_zone_x + show_more)
+                this.cam_y = lerp(this.cam_y, this.cam_zone_y - 90, 0.5)
+
+                this.cam_x = Math.min(Math.max(0, this.cam_x), this.w * 8 - 320)
+
             }
+        }
+
+        let bs = this.many(Bullet)
 
 
-            let sign = Math.sign(p.dx)
-            let dx = Math.abs(p.dx + p.rem_x)
-            p.rem_x = (dx % 1) * sign
+        bs.forEach(b => {
 
-            let v_damping = p.dy === 0 ? 1 : 0.8
+            let sign = Math.sign(b.dx)
+            let dx = Math.abs(b.dx + b.rem_x)
+            b.rem_x = (dx % 1) * sign
 
             for (let i = 0; i < dx; i++) {
-                let dxx = sign * Time.dt * h_accel * v_damping
-                if (this.is_solid_xywh(p, dxx, 0)) {
-                    p.collide_h = sign
-                    p.dx = 0
+                let dxx = sign * Time.dt * h_accel
+                if (this.is_solid_xywh(b, dxx, 0)) {
+                    b.collide_h = sign
+                    b.dx = 0
                     break
                 } else {
-                    p.collide_h = 0
-                    p.x += dxx
+                    b.collide_h = 0
+                    b.x += dxx
                 }
             }
 
 
 
 
-            if (this.cam_zone_x < (p.x - 8) - 30) {
-                this.cam_zone_x = (p.x - 8) - 30
-            }
-            if (this.cam_zone_x > (p.x + 8) + 30) {
-                this.cam_zone_x = (p.x + 8) + 30
-            }
-            if (this.cam_zone_y < p.y - 8) {
-                this.cam_zone_y = p.y - 8
-            }
-            if (this.cam_zone_y > p.y + 8) {
-                this.cam_zone_y = p.y + 8
-            }
-
-            let show_more = p.dx < 0 ? -170 : p.dx > 0 ? -150 : -160
-            this.cam_x = lerp(this.cam_x, this.cam_zone_x + show_more)
-            this.cam_y = lerp(this.cam_y, this.cam_zone_y - 90, 0.5)
-
-            this.cam_x = Math.min(Math.max(0, this.cam_x), this.w * 8 - 320)
-
-        }
+        })
     }
 
     _pre_draw(g: Graphics) {
@@ -443,6 +468,8 @@ class Player extends HasPosition {
     _ground_counter?: number
     _double_jump_left = 2
 
+    shoot_cool = 0
+
     pre_grounded = this.grounded
     pre_y = this.y
 
@@ -454,9 +481,7 @@ class Player extends HasPosition {
         return this.pre_y < this.y
     }
 
-    get facing() {
-        return Math.sign(this.dx)
-    }
+    facing: number = 1
 
     get grounded() {
         return this.collide_v > 0
@@ -467,9 +492,15 @@ class Player extends HasPosition {
     }
 
     _update() {
+
+        if (this.dx !== 0) {
+           this.facing = Math.sign(this.dx)
+        }
+
         let is_left = i('ArrowLeft') || i('a')
         let is_right = i('ArrowRight') || i('d')
         let is_up = i('ArrowUp') || i('w')
+        let is_shoot = i('Space') || i('x')
 
         this.is_left = is_left
         this.is_right = is_right
@@ -569,11 +600,64 @@ class Player extends HasPosition {
             }
         }
 
+
+        if (!this.ledge_grab && !this.knoll_climb && is_shoot && this.shoot_cool === 0) {
+            let _ = this.parent!.make(Bullet)
+            _.x = this.x
+            _.y = this.y - Math.random() * 8
+            _.dx = this.facing * max_dx * 2.5
+            _.anim.scale_x = Math.sign(_.dx)
+            _.base_x = _.x
+            this.shoot_cool = .2
+        }
+        this.shoot_cool = appr(this.shoot_cool, 0, Time.dt)
+
         this.pre_grounded = this.grounded
         this.pre_y = this.y
+
+        this.anim.x = - this.shoot_cool * this.facing * 4
     }
 }
 
+class Bullet extends HasPosition {
+
+    h = 4
+    base_x = 0
+
+    get distance() {
+        return Math.abs(this.x - this.base_x)
+    }
+
+    _init() {
+        this.anim = this.make(Anim, { name: 'bullet', duration: .1 })
+    }
+
+
+    _update() {
+        if (this.distance > 100 || this.collide_h !== 0) {
+
+            let _ = this.parent!.make(BulletHit, { name: 'bullet', tag: 'hit' })
+            _.x = this.x
+            _.y = this.y
+            _.anim.scale_x = this.anim.scale_x
+            this.remove()
+        }
+    }
+}
+
+class BulletHit extends HasPosition {
+
+    _init() {
+        this.anim = this.make(Anim, { name: 'bullet', tag: 'hit', duration: .4 })
+    }
+
+    _update() {
+
+        if (this.life >= .4) {
+            this.remove()
+        }
+    }
+}
 
 
 const solid_tiles = [0, 1, 2, 3, 4, 5, 20, 21, 22, 23, 24, 40, 41, 42, 44, 60, 61, 62, 63, 64, 80, 81, 82, 83]
