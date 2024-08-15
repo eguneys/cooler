@@ -1,6 +1,7 @@
 import Time from './time'
 import Content from './content'
 import Graphics from './graphics'
+import { Vec2 } from './math'
 
 export default abstract class Play {
 
@@ -16,37 +17,42 @@ export default abstract class Play {
 
   _scheds: [number, () => void][]
 
-  parent?: Play
+  parent!: Play
+
+  get position() {
+    return new Vec2(this.x, this.y)
+  }
 
   sched(n: number, p: () => void) {
     this._scheds.push([n, p])
   }
 
 
-  constructor() {
+  constructor(public x: number, public y: number) {
     this.objects = []
     this._scheds = []
   }
 
 
-  many<T extends Play>(ctor: { new(): T}): T[] {
+  many<T extends Play>(ctor: { new(x: number, y: number): T}): T[] {
     return this.objects.filter(_ => _ instanceof ctor) as T[]
   }
 
 
 
-  one<T extends Play>(ctor: { new(): T}): T | undefined {
+  one<T extends Play>(ctor: { new(x: number, y: number): T}): T | undefined {
     return this.objects.find(_ => _ instanceof ctor) as T | undefined
   }
 
-  _make<T extends Play>(ctor: { new (): T }, data: any) {
-    let res = new ctor()._set_data(data).init()
+  _make<T extends Play>(ctor: { new (x: number, y: number): T }, data: any, x: number, y: number) {
+    let res = new ctor(x, y)
     res.parent = this
+    res._set_data(data).init()
     return res
   }
 
-  make<T extends Play>(ctor: { new (): T }, data: any = {}) {
-    let res = this._make(ctor, data)
+  make<T extends Play>(ctor: { new (x: number, y: number): T }, data: any = {}, x = 0, y = x) {
+    let res = this._make(ctor, data, x, y)
     this.objects.push(res)
     return res
   }

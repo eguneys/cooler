@@ -4,6 +4,8 @@ import Play, { Anim } from "./play"
 import i from "./input"
 import a from './sound'
 import Time, { my_loop } from "./time"
+import { RigidOptions, SteerBehaviors, WeightedBehavior } from './rigid'
+import { Circle } from './math'
 
 const v_accel = 20
 const h_accel = 10
@@ -40,8 +42,8 @@ export function SceneManager(g: Graphics) {
 
     let scene: Scene
 
-    const go = (scene_ctor: { new(): Scene }) => {
-        scene = new scene_ctor()
+    const go = (scene_ctor: { new(x: number, y: number): Scene }) => {
+        scene = new scene_ctor(0, 0)
         scene._set_data({ g, go })
         scene.init()
     }
@@ -65,14 +67,14 @@ class Scene extends Play {
 
 
     get data() {
-        return this._data as { g: Graphics, go: (_: { new(): Scene }) => void}
+        return this._data as { g: Graphics, go: (_: { new(x: number, y: number): Scene }) => void}
     }
 
     get g() {
         return this.data.g
     }
 
-    go(_: { new(): Scene }) {
+    go(_: { new(x: number, y: number): Scene }) {
         this.data.go(_)
     }
 
@@ -101,9 +103,9 @@ class MyScene extends Scene {
   _init() {
 
     Content.load().then(() => {
-        let _ = this.make(Anim, { name: 'loading', tag: 'audio', duration: 1000 })
-        _.x = 320 / 2
-        _.y = 180 / 2
+        this.make(Anim, { name: 'loading', tag: 'audio', duration: 1000 }, 
+            320 / 2, 
+            180 / 2)
 
         a.generate().then(() => {
             //this.go(AudioLoaded)
@@ -127,9 +129,7 @@ class AudioLoaded extends Scene {
 
         document.addEventListener('keydown', init)
 
-        let _ = this.make(Anim, { name: 'loading', tag: 'input', duration: 1000 })
-        _.x = 260
-        _.y = 160
+        this.make(Anim, { name: 'loading', tag: 'input', duration: 1000 }, 260, 160)
     }
 }
 
@@ -182,9 +182,9 @@ class MapLoader extends Play {
             let i_src = (src[1] / 8) * 20 + (src[0] / 8)
 
             if (i_src === 399) {
-                let _ = this.make(Player)
-                _.x = px[0]
-                _.y = px[1]
+                this.make(Player, {}, px[0], px[1])
+            } else if (i_src === 398) {
+                this.make(TwoSpawn, {}, px[0], px[1])
             } else {
                 this.tiles[y][x] = i_src
             }
@@ -394,6 +394,41 @@ class MapLoader extends Play {
                 this.shake_dx = -1
                 this.shake_dy = -.2
             }
+
+
+            if (p) {
+
+                let c2s = this.many(TwoChar)
+
+                let bs = this.many(Bullet)
+
+                c2s.forEach(c2 => {
+                   let b = bs.find(b => collide_rect(c2.hitbox, b.hitbox))
+                   if (b) {
+                    c2.t_hit = .3
+                    b.t_hit = true
+                   }
+                })
+
+                c2s.forEach(c2 => {
+                    if (c2.t_hit) {
+
+                        c2.set_behaviors([
+                            [SteerBehaviors.AvoidCircleSteer(Circle.make(p.x, p.y, 200)), 0.7],
+                            [SteerBehaviors.NoSteer, 0.3]
+                        ])
+                        c2.set_opts(c2.damage_opts)
+                    } else {
+                        c2.set_behaviors([
+                            [SteerBehaviors.SeparationSteer(c2s.map(_ => _.position)), Math.random() * 0.2],
+                            [SteerBehaviors.ArriveSteer(p.position, 8), 0.2],
+                            [SteerBehaviors.AvoidCircleSteer(Circle.make(p.x, p.y, 90)), 0.6]
+                        ])
+                        c2.set_opts(c2.normal_opts)
+                    }
+                })
+
+            }
         }
 
         let bs = this.many(Bullet)
@@ -461,8 +496,6 @@ class HasPosition extends Play {
     anim!: Anim
     w = 16
     h = 16
-    x = 0
-    y = 0
 
     dx = 0
     dy = 0
@@ -472,6 +505,11 @@ class HasPosition extends Play {
     collide_h = 0
     collide_v = 0
 
+    get hitbox() {
+        let { x, y, w, h } = this
+        return { x: x - w / 2, y: y - h/ 2, w, h }
+    }
+
     _pre_draw(g: Graphics) {
         g.push_xy(this.x, this.y)
     }
@@ -479,6 +517,100 @@ class HasPosition extends Play {
     _post_draw(g: Graphics) {
         g.pop()
     }
+}
+
+class TwoSpawn extends HasPosition {
+
+    _init() {
+        this.parent!.make(TwoChar, {}, this.x, this.y)
+    }
+
+    _update() {
+        if (Time.on_interval(1)) {
+            this.parent!.make(TwoChar, {}, this.x, this.y)
+        }
+    }
+}
+
+abstract class HasSteer extends HasPosition {
+
+    abstract opts: RigidOptions
+    readonly behaviors: WeightedBehavior[] = [
+        [SteerBehaviors.NoSteer, 1]
+    ]
+
+    public steer!: SteerBehaviors
+
+    init() {
+        this.steer = new SteerBehaviors(this.opts, this.behaviors)
+        return super.init()
+    }
+
+    set_behaviors(bs: WeightedBehavior[]) {
+        this.behaviors.length = 0
+        this.behaviors.push(...bs)
+    }
+
+    set_opts(opts: RigidOptions) {
+        this.steer.opts = opts
+    }
+
+    update() {
+        this.steer.update(Time.dt, Time.dt0)
+
+        let { x, y } = this.steer.position
+        this.x = x
+        this.y = y
+
+        super.update()
+    }
+}
+
+class TwoChar extends HasSteer {
+
+    w = 32
+    h = 32
+    t_hit?: number
+
+    readonly normal_opts: RigidOptions = {
+        mass: 0.02,
+        air_friction: 0.98,
+        max_speed: 300,
+        max_force: 180,
+        x0: this.x,
+        y0: this.y
+    }
+
+    readonly damage_opts = {
+        mass: 0.001,
+        air_friction: 0.8,
+        max_speed: 5000,
+        max_force: 2000,
+        x0: this.x,
+        y0: this.y
+    }
+
+    readonly opts = this.normal_opts
+
+    _init() {
+        this.anim = this.make(Anim, { name: 'two_char' })
+
+    }
+
+    _update(){ 
+        if (this.t_hit) {
+            this.anim.play_tag('damage')
+            this.t_hit = appr(this.t_hit, 0, Time.dt)
+
+
+            if (this.t_hit === 0) {
+                this.t_hit = undefined
+            }
+        } else {
+            this.anim.play_tag('idle')
+        }
+    }
+
 }
 
 class Player extends HasPosition {
@@ -525,7 +657,7 @@ class Player extends HasPosition {
         let is_left = i('ArrowLeft') || i('a')
         let is_right = i('ArrowRight') || i('d')
         let is_up = i('ArrowUp') || i('w')
-        let is_shoot = i('Space') || i('x')
+        let is_shoot = i(' ') || i('x')
 
         this.is_left = is_left
         this.is_right = is_right
@@ -661,9 +793,11 @@ class Player extends HasPosition {
 class Bullet extends HasPosition {
 
     w = 12
-    h = 4
+    h = 12
     base_x = 0
     distance_long = 120
+
+    t_hit = false
 
     get distance() {
         return Math.abs(this.x - this.base_x)
@@ -678,7 +812,10 @@ class Bullet extends HasPosition {
     _update() {
         this.anim.y += this.dy * Time.dt
         if (this.distance > this.distance_long || this.collide_h !== 0) {
+            this.t_hit = true
+        }
 
+        if (this.t_hit) {
             let _ = this.parent!.make(BulletHit, { name: 'bullet', tag: 'hit' })
             _.x = this.x
             _.y = this.y
