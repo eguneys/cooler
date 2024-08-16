@@ -1002,14 +1002,23 @@ class Player extends HasPosition {
         this.is_left = is_left
         this.is_right = is_right
 
-        if (is_left) {
+
+        console.log(this.dx, -max_dx * 0.6)
+        if ((is_left && is_right) || (!is_left && !is_right)) {
+            this.dx = appr(this.dx, 0, Time.dt * 70)
+        } else if (is_left) {
+            if (this.anim._tag !== 'skid' && this.dx > 0 && this.dx < max_dx * 0.6) {
+                this.dx = 0
+            }
             let accel = this.dx > 0 ? 40: 30
             this.dx = appr(this.dx, -max_dx, Time.dt * accel)
         } else if (is_right) {
+            if (this.anim._tag !== 'skid' && this.dx < 0 && this.dx > -max_dx * 0.6) {
+                this.dx = 0
+            }
             let accel = this.dx < 0 ? 40: 30
             this.dx = appr(this.dx, max_dx, Time.dt * accel)
         } else {
-            this.dx = appr(this.dx, 0, Time.dt * 66)
         }
 
 
@@ -1082,7 +1091,7 @@ class Player extends HasPosition {
             this.anim.play_tag('ledge')
         } else if (this.grounded) {
             if (this.dx !== 0) {
-                if ((this.facing < 0 && is_right) || (this.facing > 0 && is_left)) {
+                if (Math.abs(this.dx) > max_dx * 0.2 && ((this.facing < 0 && is_right) || (this.facing > 0 && is_left))) {
                     this.anim.play_tag('skid')
                 } else {
                     this.anim.play_tag('run')
@@ -1159,7 +1168,13 @@ class Bullet extends HasPosition {
 
     _init() {
         this.anim = this.make(Anim, { name: 'bullet', duration: .1 })
-        this.dy = (1 - accuracy) * 2 * (0.5 - Math.random()) * (-max_jump_dy * 0.005)
+
+        let r = (0.5 - Math.random()) * 2
+
+        this.dy = (1 - accuracy) * r * (-max_jump_dy * 0.005)
+
+        a.play('bullet' + (Math.abs(r) > 0.5 ? '0' : '1'))
+
     }
 
 

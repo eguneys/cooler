@@ -148,7 +148,7 @@ export class Anim extends Play {
     return this.data.name
   }
 
-  private get _tag() {
+  public get _tag() {
     return this.data.tag || 'idle'
   }
 
