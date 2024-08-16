@@ -14,7 +14,7 @@ const fall_max_accel_y = 2800
 const _G = 9.8
 
 
-let accuracy = 0.2
+let accuracy = 0
 
 function lerp(a: number, b: number, t = 0.1) {
     return (1 - t) * a + t * b
@@ -552,10 +552,12 @@ class MapLoader extends Play {
                     if (p.falling && collide_rect(pc.hitbox, p.jumpbox)) {
                         pc.t_jumped = .3
                         p.dy = -max_jump_dy * 1.3
+                        a.play('jump0')
                     } else if (collide_rect(pc.hitbox, p.hurtbox)) {
                         p.t_knock = .8
                         p.dy = -max_jump_dy * .8
                         p.dx = (p.dx === 0 ? Math.sign(pc.dx) : -Math.sign(p.dx)) * max_dx * 2.5
+                        a.play('knock')
                     }
                 }
             }
@@ -572,6 +574,7 @@ class MapLoader extends Play {
                     pc.dx = b.dx * 1.2
                     pc.dy = -max_jump_dy * 0.2
                     pc.make(OneTimeAnim, { name: 'bullet', tag: 'damage', duration: .4 })
+                    a.play('damage' + Math.floor(Math.random() * 3))
                 }
                 b.t_hit = true
             }
@@ -985,6 +988,10 @@ class Player extends HasPosition {
     }
 
     _update() {
+        
+        if (Time.on_interval(1)) {
+            accuracy = Math.min(1, accuracy + 1 / 100)
+        }
 
         if (this.t_knock !== undefined) {
             this.t_knock = appr(this.t_knock, 0, Time.dt)
@@ -1003,7 +1010,6 @@ class Player extends HasPosition {
         this.is_right = is_right
 
 
-        console.log(this.dx, -max_dx * 0.6)
         if ((is_left && is_right) || (!is_left && !is_right)) {
             this.dx = appr(this.dx, 0, Time.dt * 70)
         } else if (is_left) {
@@ -1050,13 +1056,13 @@ class Player extends HasPosition {
                     this.dy = -max_jump_dy
                     this._up_counter = undefined
                     this._double_jump_left = 1
-                    a.play('jump')
+                    a.play('jump0')
                 } else if (this._double_jump_left > 0) {
                     this.dy = -max_jump_dy
                     this._up_counter = undefined
                     this._double_jump_left = 0
 
-                    a.play('djump')
+                    a.play('jump' + (Math.random() < 0.3 ? '1': '2'))
                     /*
                     let _ = this.parent!.make(Fx, { name: 'fx_djump', duration: 0.4 })
                     _.x = this.x
@@ -1171,7 +1177,7 @@ class Bullet extends HasPosition {
 
         let r = (0.5 - Math.random()) * 2
 
-        this.dy = (1 - accuracy) * r * (-max_jump_dy * 0.005)
+        this.dy = (1 - accuracy) * r * (-max_jump_dy * 0.016)
 
         a.play('bullet' + (Math.abs(r) > 0.5 ? '0' : '1'))
 
