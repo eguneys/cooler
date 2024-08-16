@@ -230,6 +230,8 @@ class MapLoader extends Play {
                 this.make(Player, {}, px[0], px[1])
             } else if (i_src === 398) {
                 this.make(TwoSpawn, {}, px[0], px[1])
+            } else if (i_src === 397) {
+                this.make(PlusSpawn, {}, px[0], px[1])
             } else {
                 this.tiles[y][x] = i_src
             }
@@ -540,12 +542,42 @@ class MapLoader extends Play {
                     b.x += dxx
                 }
             }
-
-
-
-
         })
 
+
+        let ps = this.many(PlusChar)
+
+        ps.forEach(pc => {
+            let sign = Math.sign(pc.dx)
+            let dx = Math.abs(pc.dx + pc.rem_x)
+            pc.rem_x = (dx % 1) * sign
+
+            for (let i = 0; i < dx; i++) {
+                let dxx = sign * Time.dt * h_accel
+                if (this.is_solid_xywh(pc, dxx, 0)) {
+                    pc.collide_h = sign
+                    pc.dx = -pc.dx
+                    break
+                } else {
+                    pc.collide_h = 0
+                    pc.x += dxx
+                }
+            }
+
+            if (p) {
+                if (p.t_knock === undefined) {
+                    if (p.falling && collide_rect(pc.hitbox, p.jumpbox)) {
+                        pc.t_jumped = .3
+                        p.dy = -max_jump_dy * 1.6
+                    } else if (collide_rect(pc.hitbox, p.hurtbox)) {
+                        p.t_knock = .8
+                        p.dy = -max_jump_dy
+                        p.dx = (p.dx === 0 ? Math.sign(pc.dx) : -Math.sign(p.dx)) * max_dx * 2
+                    }
+                }
+            }
+
+        })
 
         if (this.shake_dx !== 0) {
             this.cam_shake_x = this.shake_dx * Math.sin(2 * Math.PI * 0.2 * this.life) 
@@ -608,6 +640,50 @@ class HasPosition extends Play {
     }
 }
 
+class PlusChar extends HasPosition {
+
+    t_jumped?: number
+
+    _init() {
+        this.anim = this.make(Anim, {name: 'plus_char'})
+        this.dx = max_dx /2
+    }
+
+    _update() {
+        if (this.t_jumped !== undefined) {
+            this.t_jumped = appr(this.t_jumped, 0, Time.dt)
+
+            if (this.t_jumped === 0) {
+                this.t_jumped = undefined
+            }
+        }
+
+        if (this.t_jumped !== undefined) {
+            this.anim.scale_y = appr(this.anim.scale_y, 0.8, Time.dt * 1.8)
+            this.anim.scale_x = appr(this.anim.scale_x, 1.2, Time.dt * 1.6)
+            this.anim.play_tag('jumped')
+        } else {
+
+            this.anim.scale_y = appr(this.anim.scale_y, 1, Time.dt)
+            this.anim.scale_x = appr(this.anim.scale_x, 1, Time.dt)
+            this.anim.play_tag('idle')
+        }
+    }
+}
+
+class PlusSpawn extends HasPosition {
+    _init() {
+        this.parent!.make(PlusChar, {}, this.x, this.y)
+    }
+    _update() {
+        if (this.parent.many(PlusChar).length < 2) {
+            if (Time.on_interval(1)) {
+                this.parent!.make(PlusChar, {}, this.x, this.y)
+            }
+        }
+    }
+}
+
 class TwoSpawn extends HasPosition {
 
     _init() {
@@ -633,6 +709,8 @@ abstract class HasSteer extends HasPosition {
 
     public steer!: SteerBehaviors
 
+    is_lock_x?: boolean
+
     init() {
         this.steer = new SteerBehaviors(this.opts, this.behaviors)
         return super.init()
@@ -648,6 +726,16 @@ abstract class HasSteer extends HasPosition {
     }
 
     update() {
+
+        if (this.is_lock_x === undefined) {
+            this.steer.lock_force = Vec2.unit
+        } else if (this.is_lock_x) {
+            this.steer.lock_force = Vec2.make(1, 0)
+        } else {
+            this.steer.lock_force = Vec2.make(0, 1)
+        }
+
+
         this.steer.update(Time.dt, Time.dt0)
 
         let { x, y } = this.steer.position
@@ -743,15 +831,27 @@ class TwoChar extends HasSteer {
     _init() {
         this.anim = this.make(Anim, { name: 'two_char' })
 
+        this.is_lock_x = true
     }
 
+
     _update(){ 
+
+        if (Time.on_interval(3)) {
+            if (this.is_lock_x !== undefined) {
+                this.is_lock_x = !this.is_lock_x
+            }
+        } 
+
+
         if (this.t_hit) {
+            this.is_lock_x = undefined
             this.anim.play_tag('damage')
             this.t_hit = appr(this.t_hit, 0, Time.dt)
 
 
             if (this.t_hit === 0) {
+                this.is_lock_x = true
                 this.t_hit = undefined
                 this.damage-=1
             }
@@ -770,6 +870,8 @@ class Player extends HasPosition {
     ledge_grab?: number
     knoll_climb?: number
 
+    t_knock?: number
+
     _up_counter?: number
     _ground_counter?: number
     _double_jump_left = 2
@@ -778,6 +880,13 @@ class Player extends HasPosition {
 
     pre_grounded = this.grounded
     pre_y = this.y
+
+    get jumpbox() {
+        return { x: this.hitbox.x, y: this.hitbox.y, w: this.w * 1.2, h: this.h }
+    }
+    get hurtbox() {
+        return { x: this.hitbox.x, y: this.hitbox.y, w: this.w * 0.8, h: this.h * 0.7 }
+    }
 
     get jumping() {
         return this.pre_y > this.y
@@ -798,6 +907,15 @@ class Player extends HasPosition {
     }
 
     _update() {
+
+        if (this.t_knock !== undefined) {
+            this.t_knock = appr(this.t_knock, 0, Time.dt)
+
+            if (this.t_knock === 0) {
+                this.t_knock = undefined
+            }
+        }
+
 
         if (this.dx !== 0) {
            this.facing = Math.sign(this.dx)
@@ -886,7 +1004,9 @@ class Player extends HasPosition {
             }
         }
 
-        if (this.ledge_grab !== undefined) {
+        if (this.t_knock !== undefined) {
+            this.anim.play_tag('knock')
+        } else if (this.ledge_grab !== undefined) {
             this.anim.play_tag('ledge')
         } else if (this.grounded) {
             if (this.dx !== 0) {
@@ -901,9 +1021,10 @@ class Player extends HasPosition {
             } else {
                 this.anim.play_tag('fall')
             }
-            if (this.facing !== 0) {
-               this.anim.scale_x = this.facing
-            }
+        }
+
+        if (Math.sign(this.anim.scale_x) !== this.facing) {
+            this.anim.scale_x *= -1
         }
 
         if (this.jumping) {

@@ -70,6 +70,10 @@ class Rigid {
         this.force = this.force.add(v_f)
     }
 
+    lock_force(v_f: Vec2) {
+      this.force = this.force.mul(v_f)
+    }
+
     get position() {
         return this.x
     }
@@ -111,6 +115,8 @@ export class SteerBehaviors {
 
     body: Rigid
 
+    lock_force = Vec2.unit
+
     get opts() {
       return this.body.opts
     }
@@ -135,6 +141,7 @@ export class SteerBehaviors {
             this.body.add_force(steering.scale(w))
         })
 
+        this.body.lock_force(this.lock_force)
         this.body.update(dt, dt0)
     }
 }
