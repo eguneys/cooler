@@ -5,7 +5,7 @@ import i from "./input"
 import a from './sound'
 import Time, { my_loop } from "./time"
 import { RigidOptions, SteerBehaviors, WeightedBehavior } from './rigid'
-import { Circle } from './math'
+import { Circle, Vec2 } from './math'
 
 const v_accel = 20
 const h_accel = 10
@@ -394,45 +394,87 @@ class MapLoader extends Play {
                 this.shake_dx = -1
                 this.shake_dy = -.2
             }
-
-
-            if (p) {
-
-                let c2s = this.many(TwoChar)
-
-                let bs = this.many(Bullet)
-
-                c2s.forEach(c2 => {
-                   let b = bs.find(b => collide_rect(c2.hitbox, b.hitbox))
-                   if (b) {
-                    c2.t_hit = .3
-                    b.t_hit = true
-                   }
-                })
-
-                c2s.forEach(c2 => {
-                    if (c2.t_hit) {
-
-                        c2.set_behaviors([
-                            [SteerBehaviors.AvoidCircleSteer(Circle.make(p.x, p.y, 200)), 0.7],
-                            [SteerBehaviors.NoSteer, 0.3]
-                        ])
-                        c2.set_opts(c2.damage_opts)
-                    } else {
-                        c2.set_behaviors([
-                            [SteerBehaviors.SeparationSteer(c2s.map(_ => _.position)), Math.random() * 0.2],
-                            [SteerBehaviors.ArriveSteer(p.position, 8), 0.2],
-                            [SteerBehaviors.AvoidCircleSteer(Circle.make(p.x, p.y, 90)), 0.6]
-                        ])
-                        c2.set_opts(c2.normal_opts)
-                    }
-                })
-
-            }
         }
 
         let bs = this.many(Bullet)
 
+        if (p) {
+
+            let leader = this.one(TwoChar)?.position ?? Vec2.zero
+            let c1s = this.many(OneChar)
+
+
+            c1s.forEach(c1 => {
+                let b = bs.find(b => collide_rect(c1.hitbox, b.hitbox))
+                if (b) {
+                    this.make(OneTimeAnim, {
+                        name: 'one_char',
+                        tag: 'hit',
+                        duration: .8,
+                    }, c1.x, c1.y)
+                    c1.remove()
+                    b.t_hit = true
+                }
+            })
+
+
+
+
+            c1s.forEach(c1 => {
+                c1.set_behaviors([
+                    [SteerBehaviors.SeparationSteer(c1s.filter(_ => _ !== c1).map(_ => _.position)), 0.1],
+                    [SteerBehaviors.ArriveSteer(leader, p.position.y), 0.2],
+                    [SteerBehaviors.AvoidCircleSteer(Circle.make(p.position.x, p.position.y, 10)), 0.1],
+                ])
+
+            })
+
+        }
+
+        if (p) {
+
+            let c2s = this.many(TwoChar)
+
+
+            c2s.forEach(c2 => {
+                let b = bs.find(b => collide_rect(c2.hitbox, b.hitbox))
+                if (b) {
+                    if (c2.damage === 0) {
+                        for (let i = 0; i < 2; i++)
+                            this.make(OneTimeAnim, {
+                                name: 'two_char',
+                                tag: 'split',
+                                duration: .8,
+                                end_make: [OneChar, {}]
+                            }, c2.x, c2.y)
+                        c2.remove()
+                    } else {
+                        c2.t_hit = .3
+                    }
+                    b.t_hit = true
+                }
+            })
+
+            c2s.forEach(c2 => {
+                if (c2.t_hit) {
+
+                    c2.set_behaviors([
+                        [SteerBehaviors.AvoidCircleSteer(Circle.make(p.x, p.y, 200)), 0.7],
+                        [SteerBehaviors.NoSteer, 0.3]
+                    ])
+                    c2.set_opts(c2.damage_opts)
+                } else {
+                    c2.set_behaviors([
+                        [SteerBehaviors.SeparationSteer(c2s.filter(_ => _ !== c2).map(_ => _.position)), 0.1],
+                        [SteerBehaviors.ArriveSteer(p.position, 8), 0.2],
+                        [SteerBehaviors.ArriveSteer(Vec2.make(Math.abs(Math.sin(this.life * 0.2)) * this.w * 8, p.position.y), 8), 0.2],
+                        [SteerBehaviors.AvoidCircleSteer(Circle.make(p.x, p.y, 90)), 0.4]
+                    ])
+                    c2.set_opts(c2.normal_opts)
+                }
+            })
+
+        }
 
         bs.forEach(b => {
 
@@ -526,11 +568,14 @@ class TwoSpawn extends HasPosition {
     }
 
     _update() {
-        if (Time.on_interval(1)) {
-            this.parent!.make(TwoChar, {}, this.x, this.y)
+        if (this.parent.many(TwoChar).length < 5) {
+            if (Time.on_interval(1)) {
+                this.parent!.make(TwoChar, {}, this.x, this.y)
+            }
         }
     }
 }
+
 
 abstract class HasSteer extends HasPosition {
 
@@ -566,11 +611,67 @@ abstract class HasSteer extends HasPosition {
     }
 }
 
+
+type OneTimeAnimData = {
+    name: string,
+    tag?: string,
+    duration?: number,
+    on_end?: () => void
+    end_make?: [new(x: number, y: number) => Play, any]
+}
+
+class OneTimeAnim extends HasPosition {
+
+    get data() {
+        return this._data as OneTimeAnimData
+    }
+
+    get duration() {
+        return this.data.duration ?? 1
+    }
+
+    _init() {
+        let { name, tag } = this.data
+        this.anim = this.make(Anim, { name, tag, duration: this.duration })
+    }
+
+    _update() {
+
+        if (this.life > this.duration) {
+            this.data.on_end?.()
+            if (this.data.end_make) {
+                let [ctor, data] = this.data.end_make
+                this.parent!.make(ctor, data, this.x, this.y)
+            }
+            this.remove()
+        }
+    }
+}
+
+class OneChar extends HasSteer {
+
+    readonly opts: RigidOptions = {
+        mass: 0.002,
+        air_friction: 0.99,
+        max_speed: 400,
+        max_force: 280,
+        x0: this.x,
+        y0: this.y
+    }
+
+    _init() {
+        this.anim = this.make(Anim, { name: 'one_char' })
+    }
+
+}
+
 class TwoChar extends HasSteer {
 
     w = 32
     h = 32
     t_hit?: number
+
+    damage = 2
 
     readonly normal_opts: RigidOptions = {
         mass: 0.02,
@@ -605,6 +706,7 @@ class TwoChar extends HasSteer {
 
             if (this.t_hit === 0) {
                 this.t_hit = undefined
+                this.damage-=1
             }
         } else {
             this.anim.play_tag('idle')
