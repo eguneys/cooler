@@ -136,15 +136,60 @@ class AudioLoaded extends Scene {
 
 class Intro extends Scene {
 
+    map!: MapLoader
+    bar!: Bar
+
     _init() {
         this.song = a.play('song', true)
 
-        this.make(MapLoader)
+        this.map = this.make(MapLoader)
+        this.bar = this.make(Bar)
+    }
+}
+
+class Bar extends Play {
+    _init() {
+        for (let i = 0; i < 3; i++) {
+            let _ = this.make(Anim, { name: 'bar' })
+            _.x = 320 / 2 - 80 + (i * 80)
+            _.y = 15
+        }
+        let e1 = this.make(Anim, { name: 'bar', tag: 'end' })
+        e1.x = 320 / 2 - 80 - 20
+        e1.y = 15
+        let e2 = this.make(Anim, { name: 'bar', tag: 'end' })
+        e2.x = 320 / 2 - 80 + 80 * 2 + 20
+        e2.y = 15
+        e2.scale_x = -1
+
+        let m = this.make(Anim, { name: 'bar', tag: 'middle' })
+        m.x = 320 / 2
+        m.y = 15
+
+        this.thumb = this.make(Anim, { name: 'bar', tag: 'thumb' })
+        this.thumb.y = 25
+    }
+
+    thumb!: Anim
+
+    width = 0
+
+    _update() {
+        //this.width = Math.floor(Math.abs(Math.sin(this.life * 2 * Math.PI * .2)) * 27)
+        this.thumb.x = 320 / 2 - 80 - 40 + (this.width / 26) * 240
+    }
+
+    _pre_draw(g: Graphics) {
+        g.fr(35, 12, 260, 8, 'red')
     }
 }
 
 
 class MapLoader extends Play {
+
+    get bar() {
+        return (this.parent as Intro).bar
+    }
 
     w!: number
     h!: number
@@ -414,6 +459,8 @@ class MapLoader extends Play {
                     }, c1.x, c1.y)
                     c1.remove()
                     b.t_hit = true
+                    this.bar.width++
+
                 }
             })
 
@@ -860,8 +907,8 @@ class Player extends HasPosition {
         }
 
         if (this.jumping) {
-            this.anim.scale_x = appr(this.anim.scale_x, this.facing * 0.9, Time.dt * 0.8)
-            this.anim.scale_y = appr(this.anim.scale_y, 1.1, Time.dt * 0.8)
+            this.anim.scale_x = appr(this.anim.scale_x, this.facing * 0.8, Time.dt * 0.9)
+            this.anim.scale_y = appr(this.anim.scale_y, 1.16, Time.dt * 0.9)
         } else {
             this.anim.scale_x = appr(this.anim.scale_x, this.facing, Time.dt)
             this.anim.scale_y = appr(this.anim.scale_y, 1, Time.dt)

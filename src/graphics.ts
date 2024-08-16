@@ -14,7 +14,7 @@ export function make_graphics(width: number, height: number, pixelated = true) {
     const on_resize = () => {
       canvas.width = width
       canvas.height = height
-      ctx.imageSmoothingEnabled = pixelated
+      ctx.imageSmoothingEnabled = !pixelated
     }
 
     document.addEventListener('scroll', on_resize, { capture: true, passive: true })
