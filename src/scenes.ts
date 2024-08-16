@@ -4,15 +4,14 @@ import Play, { Anim } from "./play"
 import i from "./input"
 import a from './sound'
 import Time, { my_loop } from "./time"
-import { RigidOptions, SteerBehaviors, WeightedBehavior } from './rigid'
-import { Circle, Vec2 } from './math'
+//import { RigidOptions, SteerBehaviors, WeightedBehavior } from './rigid'
 
 const v_accel = 20
 const h_accel = 10
 const max_dx = 10
 const max_jump_dy = 2000
-const fall_max_accel_y = 2000
-const _G = 9
+const fall_max_accel_y = 2200
+const _G = 9.8
 
 function lerp(a: number, b: number, t = 0.1) {
     return (1 - t) * a + t * b
@@ -137,16 +136,16 @@ class AudioLoaded extends Scene {
 class Intro extends Scene {
 
     map!: MapLoader
-    bar!: Bar
 
     _init() {
         this.song = a.play('song', true)
 
         this.map = this.make(MapLoader)
-        this.bar = this.make(Bar)
+        //this.bar = this.make(Bar)
     }
 }
 
+// @ts-ignore
 class Bar extends Play {
     _init() {
         for (let i = 0; i < 3; i++) {
@@ -187,10 +186,6 @@ class Bar extends Play {
 
 class MapLoader extends Play {
 
-    get bar() {
-        return (this.parent as Intro).bar
-    }
-
     w!: number
     h!: number
     tiles!: number[][]
@@ -229,7 +224,7 @@ class MapLoader extends Play {
             if (i_src === 399) {
                 this.make(Player, {}, px[0], px[1])
             } else if (i_src === 398) {
-                this.make(TwoSpawn, {}, px[0], px[1])
+                //this.make(TwoSpawn, {}, px[0], px[1])
             } else if (i_src === 397) {
                 this.make(PlusSpawn, {}, px[0], px[1])
             } else {
@@ -376,8 +371,9 @@ class MapLoader extends Play {
                     }
                 }
 
+                let shoot_damping = p.shoot_cool > 0 ? 0.36 : 1
                 if (p.dy > -50) {
-                    let dy = (fall_max_accel_y * G)
+                    let dy = (fall_max_accel_y * G) * shoot_damping
                     let sign = 1
 
                     for (let di = 0; di < dy; di += 1) {
@@ -445,85 +441,89 @@ class MapLoader extends Play {
 
         let bs = this.many(Bullet)
 
-        if (p) {
+        /*
+        if (true) {
+            if (p) {
 
-            let leader = this.one(TwoChar)?.position ?? Vec2.zero
-            let c1s = this.many(OneChar)
-
-
-            c1s.forEach(c1 => {
-                let b = bs.find(b => collide_rect(c1.hitbox, b.hitbox))
-                if (b) {
-                    this.make(OneTimeAnim, {
-                        name: 'one_char',
-                        tag: 'hit',
-                        duration: .8,
-                    }, c1.x, c1.y)
-                    c1.remove()
-                    b.t_hit = true
-                    this.bar.width++
-
-                }
-            })
+                let leader = this.one(TwoChar)?.position ?? Vec2.zero
+                let c1s = this.many(OneChar)
 
 
+                c1s.forEach(c1 => {
+                    let b = bs.find(b => collide_rect(c1.hitbox, b.hitbox))
+                    if (b) {
+                        this.make(OneTimeAnim, {
+                            name: 'one_char',
+                            tag: 'hit',
+                            duration: .8,
+                        }, c1.x, c1.y)
+                        c1.remove()
+                        b.t_hit = true
+                        this.bar.width++
 
-
-            c1s.forEach(c1 => {
-                c1.set_behaviors([
-                    [SteerBehaviors.SeparationSteer(c1s.filter(_ => _ !== c1).map(_ => _.position)), 0.1],
-                    [SteerBehaviors.ArriveSteer(leader, p.position.y), 0.2],
-                    [SteerBehaviors.AvoidCircleSteer(Circle.make(p.position.x, p.position.y, 10)), 0.1],
-                ])
-
-            })
-
-        }
-
-        if (p) {
-
-            let c2s = this.many(TwoChar)
-
-
-            c2s.forEach(c2 => {
-                let b = bs.find(b => collide_rect(c2.hitbox, b.hitbox))
-                if (b) {
-                    if (c2.damage === 0) {
-                        for (let i = 0; i < 2; i++)
-                            this.make(OneTimeAnim, {
-                                name: 'two_char',
-                                tag: 'split',
-                                duration: .8,
-                                end_make: [OneChar, {}]
-                            }, c2.x, c2.y)
-                        c2.remove()
-                    } else {
-                        c2.t_hit = .3
                     }
-                    b.t_hit = true
-                }
-            })
+                })
 
-            c2s.forEach(c2 => {
-                if (c2.t_hit) {
 
-                    c2.set_behaviors([
-                        [SteerBehaviors.AvoidCircleSteer(Circle.make(p.x, p.y, 200)), 0.7],
-                        [SteerBehaviors.NoSteer, 0.3]
+
+
+                c1s.forEach(c1 => {
+                    c1.set_behaviors([
+                        [SteerBehaviors.SeparationSteer(c1s.filter(_ => _ !== c1).map(_ => _.position)), 0.1],
+                        [SteerBehaviors.ArriveSteer(leader, p.position.y), 0.2],
+                        [SteerBehaviors.AvoidCircleSteer(Circle.make(p.position.x, p.position.y, 10)), 0.1],
                     ])
-                    c2.set_opts(c2.damage_opts)
-                } else {
-                    c2.set_behaviors([
-                        [SteerBehaviors.SeparationSteer(c2s.filter(_ => _ !== c2).map(_ => _.position)), 0.1],
-                        [SteerBehaviors.ArriveSteer(p.position, 8), 0.2],
-                        [SteerBehaviors.ArriveSteer(Vec2.make(Math.abs(Math.sin(this.life * 0.2)) * this.w * 8, p.position.y), 8), 0.2],
-                        [SteerBehaviors.AvoidCircleSteer(Circle.make(p.x, p.y, 90)), 0.4]
-                    ])
-                    c2.set_opts(c2.normal_opts)
-                }
-            })
 
+                })
+
+            }
+
+            if (p) {
+
+                let c2s = this.many(TwoChar)
+
+
+                c2s.forEach(c2 => {
+                    let b = bs.find(b => collide_rect(c2.hitbox, b.hitbox))
+                    if (b) {
+                        if (c2.damage === 0) {
+                            for (let i = 0; i < 2; i++)
+                                this.make(OneTimeAnim, {
+                                    name: 'two_char',
+                                    tag: 'split',
+                                    duration: .8,
+                                    end_make: [OneChar, {}]
+                                }, c2.x, c2.y)
+                            c2.remove()
+                        } else {
+                            c2.t_hit = .3
+                        }
+                        b.t_hit = true
+                    }
+                })
+
+                c2s.forEach(c2 => {
+                    if (c2.t_hit) {
+
+                        c2.set_behaviors([
+                            [SteerBehaviors.AvoidCircleSteer(Circle.make(p.x, p.y, 200)), 0.7],
+                            [SteerBehaviors.NoSteer, 0.3]
+                        ])
+                        c2.set_opts(c2.damage_opts)
+                    } else {
+                        c2.set_behaviors([
+                            [SteerBehaviors.SeparationSteer(c2s.filter(_ => _ !== c2).map(_ => _.position)), 0.1],
+                            [SteerBehaviors.ArriveSteer(p.position, 8), 0.2],
+                            [SteerBehaviors.ArriveSteer(Vec2.make(Math.abs(Math.sin(this.life * 0.2)) * this.w * 8, p.position.y), 8), 0.2],
+                            [SteerBehaviors.AvoidCircleSteer(Circle.make(p.x, p.y, 90)), 0.4]
+                        ])
+                        c2.set_opts(c2.normal_opts)
+                    }
+                })
+
+            }
         }
+            */
 
         bs.forEach(b => {
 
@@ -540,6 +540,23 @@ class MapLoader extends Play {
                 } else {
                     b.collide_h = 0
                     b.x += dxx
+                }
+            }
+
+
+            sign = Math.sign(b.dy)
+            let dy = Math.abs(b.dy + b.rem_y)
+            b.rem_y = (dy % 1) * sign
+
+            for (let i = 0; i < dy; i++) {
+                let dyy = sign * Time.dt * h_accel
+                if (this.is_solid_xywh(b, dyy, 0)) {
+                    b.collide_v = sign
+                    b.dy = 0
+                    break
+                } else {
+                    b.collide_v = 0
+                    b.y += dyy
                 }
             }
         })
@@ -578,6 +595,23 @@ class MapLoader extends Play {
             }
 
         })
+        
+
+        ps.forEach(pc => {
+            let b = bs.find(b => collide_rect(pc.hitbox, b.hitbox))
+            if (b) {
+                if (pc.damage === 0) {
+                    pc.remove()
+                } else {
+                    pc.t_hit = .2
+                    pc.dx = b.dx
+                }
+                b.t_hit = true
+            }
+        })
+
+
+
 
         if (this.shake_dx !== 0) {
             this.cam_shake_x = this.shake_dx * Math.sin(2 * Math.PI * 0.2 * this.life) 
@@ -643,6 +677,11 @@ class HasPosition extends Play {
 class PlusChar extends HasPosition {
 
     t_jumped?: number
+    t_hit?: number
+
+    damage = 3
+
+
 
     _init() {
         this.anim = this.make(Anim, {name: 'plus_char'})
@@ -658,7 +697,24 @@ class PlusChar extends HasPosition {
             }
         }
 
-        if (this.t_jumped !== undefined) {
+
+        if (this.t_hit) {
+            this.anim.play_tag('damage')
+            this.t_hit = appr(this.t_hit, 0, Time.dt)
+
+            this.dx = appr(this.dx, (this.damage < 1 ? 1 : -1) * Math.sign(this.dx) * max_dx / 2, Time.dt * 200)
+            this.anim.scale_y = appr(this.anim.scale_y, 1.2, Time.dt * 2)
+            this.anim.scale_x = appr(this.anim.scale_x, 0.8, Time.dt * 2)
+
+            if (this.t_hit === 0) {
+                this.t_hit = undefined
+                this.damage-=1
+                if (this.damage >= 1) {
+
+                    this.dx = Math.sign(this.dx) * max_dx / 2
+                }
+            }
+        } else if (this.t_jumped !== undefined) {
             this.anim.scale_y = appr(this.anim.scale_y, 0.8, Time.dt * 1.8)
             this.anim.scale_x = appr(this.anim.scale_x, 1.2, Time.dt * 1.6)
             this.anim.play_tag('jumped')
@@ -684,6 +740,8 @@ class PlusSpawn extends HasPosition {
     }
 }
 
+/*
+// @ts-ignore
 class TwoSpawn extends HasPosition {
 
     _init() {
@@ -698,8 +756,10 @@ class TwoSpawn extends HasPosition {
         }
     }
 }
+    */
 
 
+/*
 abstract class HasSteer extends HasPosition {
 
     abstract opts: RigidOptions
@@ -755,6 +815,7 @@ type OneTimeAnimData = {
     end_make?: [new(x: number, y: number) => Play, any]
 }
 
+// @ts-ignore
 class OneTimeAnim extends HasPosition {
 
     get data() {
@@ -783,6 +844,7 @@ class OneTimeAnim extends HasPosition {
     }
 }
 
+// @ts-ignore
 class OneChar extends HasSteer {
 
     readonly opts: RigidOptions = {
@@ -800,6 +862,7 @@ class OneChar extends HasSteer {
 
 }
 
+// @ts-ignore
 class TwoChar extends HasSteer {
 
     w = 32
@@ -861,6 +924,7 @@ class TwoChar extends HasSteer {
     }
 
 }
+    */
 
 class Player extends HasPosition {
 
@@ -923,7 +987,7 @@ class Player extends HasPosition {
 
         let is_left = i('ArrowLeft') || i('a')
         let is_right = i('ArrowRight') || i('d')
-        let is_up = i('ArrowUp') || i('w')
+        let is_jump = i('ArrowUp') || i('w')
         let is_shoot = i(' ') || i('x')
 
         this.is_left = is_left
@@ -941,7 +1005,7 @@ class Player extends HasPosition {
 
 
 
-        if (is_up) {
+        if (is_jump) {
             if (this._up_counter !== undefined) {
                 this._up_counter += Time.dt
             }
@@ -1046,6 +1110,7 @@ class Player extends HasPosition {
             _.x = this.x
             _.y = f.y
             _.dx = this.facing * max_dx * 2.5
+            //_.dy = is_up ? -Math.abs(_.dx) : 0
             _.anim.scale_x = Math.sign(_.dx)
             _.base_x = _.x
             _.distance_long = (this.dx === 0 ? 60 : 110) + Math.random() * 30
@@ -1075,7 +1140,7 @@ class Bullet extends HasPosition {
 
     _init() {
         this.anim = this.make(Anim, { name: 'bullet', duration: .1 })
-        this.dy = (0.5 - Math.random()) * 40
+        this.dy = (0.5 - Math.random()) * 4
     }
 
 

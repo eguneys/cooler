@@ -1,7 +1,6 @@
 import Time from './time'
 import Content from './content'
 import Graphics from './graphics'
-import { Vec2 } from './math'
 
 export default abstract class Play {
 
@@ -20,7 +19,7 @@ export default abstract class Play {
   parent!: Play
 
   get position() {
-    return new Vec2(this.x, this.y)
+    return [this.x, this.y]
   }
 
   sched(n: number, p: () => void) {
