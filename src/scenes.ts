@@ -6,12 +6,15 @@ import a from './sound'
 import Time, { my_loop } from "./time"
 //import { RigidOptions, SteerBehaviors, WeightedBehavior } from './rigid'
 
-const v_accel = 20
+const v_accel = 80
 const h_accel = 10
 const max_dx = 10
-const max_jump_dy = 2000
-const fall_max_accel_y = 2200
+const max_jump_dy = 800
+const fall_max_accel_y = 2800
 const _G = 9.8
+
+
+let accuracy = 0.2
 
 function lerp(a: number, b: number, t = 0.1) {
     return (1 - t) * a + t * b
@@ -303,11 +306,11 @@ class MapLoader extends Play {
                 let l_knoll = !this.get_solid_xywh(p, -1, -8) ? this.get_solid_xywh(p, -1, 0) : undefined
 
                 if (p.is_right && Array.isArray(r_knoll)) {
-                    p.knoll_climb = .16
+                    p.knoll_climb = .13
                     p.x = r_knoll[0]
                     p.y = r_knoll[1] - 1
                 } else if (p.is_left && Array.isArray(l_knoll)) {
-                    p.knoll_climb = -.16
+                    p.knoll_climb = -.13
                     p.x = l_knoll[0] + 8
                     p.y = l_knoll[1] - 1
                 }
@@ -340,104 +343,101 @@ class MapLoader extends Play {
 
                 }
             } else {
-
-
-
-                let G = _G
-
-                {
-                    let sign = Math.sign(p.dy)
-                    let dy = Math.abs(p.dy + p.rem_y)
-                    p.rem_y = (dy % 1) * sign
-
-
-                    for (let di = 0; di < dy; di += 1) {
-                        let dyy = 1 / 2 * sign * Time.dt * Time.dt * v_accel
-                        if (this.is_solid_xywh(p, 0, dyy)) {
-                            p.collide_v = sign
-                            p.dy /= 2
-                            break
-                        } else {
-                            p.collide_v = 0
-                            p.y += dyy;
-
-                            {
-                                let dii = G
-                                let sign = 1
-
-                                p.dy += sign * dii * Time.dt
-                            }
-                        }
-                    }
-                }
-
-                let shoot_damping = p.shoot_cool > 0 ? 0.36 : 1
-                if (p.dy > -50) {
-                    let dy = (fall_max_accel_y * G) * shoot_damping
-                    let sign = 1
-
-                    for (let di = 0; di < dy; di += 1) {
-                        let dyy = 1 / 2 * sign * Time.dt * Time.dt
-                        if (this.is_solid_xywh(p, 0, dyy)) {
-                            p.collide_v = sign
-                            p.dy = 0
-                            break
-                        } else {
-                            p.collide_v = 0
-                            p.y += dyy
-                        }
-                    }
-                }
-
-
-                let sign = Math.sign(p.dx)
-                let dx = Math.abs(p.dx + p.rem_x)
-                p.rem_x = (dx % 1) * sign
-
-                let v_damping = p.dy === 0 ? 1 : 0.8
-                let s_damping = p.shoot_cool > 0 ? 0.66 : 1
-
-                for (let i = 0; i < dx; i++) {
-                    let dxx = sign * Time.dt * h_accel * v_damping * s_damping
-                    if (this.is_solid_xywh(p, dxx, 0)) {
-                        p.collide_h = sign
-                        p.dx = 0
-                        break
-                    } else {
-                        p.collide_h = 0
-                        p.x += dxx
-                    }
-                }
-
-
-
-
-                if (this.cam_zone_x < (p.x - 8) - 30) {
-                    this.cam_zone_x = (p.x - 8) - 30
-                }
-                if (this.cam_zone_x > (p.x + 8) + 30) {
-                    this.cam_zone_x = (p.x + 8) + 30
-                }
-                if (this.cam_zone_y < (p.y - 8) - 30) {
-                    this.cam_zone_y = (p.y - 8) - 30
-                }
-                if (this.cam_zone_y > (p.y + 8) + 30) {
-                    this.cam_zone_y = (p.y + 8) + 30
-                }
-
-                let show_more = p.dx < 0 ? -170 : p.dx > 0 ? -150 : -160
-                this.cam_x = lerp(this.cam_x, this.cam_zone_x + show_more)
-                this.cam_y = lerp(this.cam_y, this.cam_zone_y - 90, 0.5)
-
-                this.cam_x = Math.min(Math.max(0, this.cam_x), this.w * 8 - 320)
-
             }
 
             if (p.shoot_cool > 0) {
                 this.shake_dx = -1
                 this.shake_dy = -.2
             }
+
+            if (this.cam_zone_x < (p.x - 8) - 30) {
+                this.cam_zone_x = (p.x - 8) - 30
+            }
+            if (this.cam_zone_x > (p.x + 8) + 30) {
+                this.cam_zone_x = (p.x + 8) + 30
+            }
+            if (this.cam_zone_y < (p.y - 8) - 30) {
+                this.cam_zone_y = (p.y - 8) - 30
+            }
+            if (this.cam_zone_y > (p.y + 8) + 30) {
+                this.cam_zone_y = (p.y + 8) + 30
+            }
+
+            let show_more = p.dx < 0 ? -170 : p.dx > 0 ? -150 : -160
+            this.cam_x = lerp(this.cam_x, this.cam_zone_x + show_more)
+            this.cam_y = lerp(this.cam_y, this.cam_zone_y - 90, 0.5)
+
+            this.cam_x = Math.min(Math.max(0, this.cam_x), this.w * 8 - 320)
         }
+
+
+        let pp = this.many(HasPosition)
+        
+        pp.forEach(p => {
+            let sign = Math.sign(p.dx)
+            let dx = Math.abs(p.dx + p.rem_x)
+            p.rem_x = (dx % 1) * sign
+
+            let h_damping = p.h_damping
+
+            for (let i = 0; i < dx; i++) {
+                let dxx = sign * Time.dt * h_accel * h_damping
+                if (this.is_solid_xywh(p, dxx, 0)) {
+                    p.collide_h = sign
+                    p.dx = 0
+                    break
+                } else {
+                    p.collide_h = 0
+                    p.x += dxx
+                }
+            }
+        })
+
+
+        pp.forEach(p => {
+            let G = _G
+
+            {
+                let sign = Math.sign(p.dy)
+                let dy = Math.abs(p.dy + p.rem_y)
+                p.rem_y = (dy % 1) * sign
+
+
+                for (let di = 0; di < dy; di += 1) {
+                    let dyy = 1 / 2 * sign * Time.dt * Time.dt * v_accel
+                    if (this.is_solid_xywh(p, 0, dyy)) {
+                        p.collide_v = sign
+                        p.dy /= 2
+                        break
+                    } else {
+                        p.collide_v = 0
+                        p.y += dyy;
+
+                        let v_smooth_damping = p.v_smooth_damping
+                        p.dy = appr(p.dy, 0, Time.dt * G * v_smooth_damping)
+                    }
+                }
+            }
+
+            let fall_damping = p.fall_damping
+            if (p.dy > -50) {
+                let dy = (fall_max_accel_y * G) * fall_damping
+                let sign = 1
+
+                for (let di = 0; di < dy; di += 1) {
+                    let dyy = 1 / 2 * sign * Time.dt * Time.dt
+                    if (this.is_solid_xywh(p, 0, dyy)) {
+                        p.collide_v = sign
+                        p.dy = 0
+                        break
+                    } else {
+                        p.collide_v = 0
+                        p.y += dyy
+                    }
+                }
+            }
+        })
+
 
         let bs = this.many(Bullet)
 
@@ -526,25 +526,7 @@ class MapLoader extends Play {
             */
 
         bs.forEach(b => {
-
-            let sign = Math.sign(b.dx)
-            let dx = Math.abs(b.dx + b.rem_x)
-            b.rem_x = (dx % 1) * sign
-
-            for (let i = 0; i < dx; i++) {
-                let dxx = sign * Time.dt * h_accel
-                if (this.is_solid_xywh(b, dxx, 0)) {
-                    b.collide_h = sign
-                    b.dx = 0
-                    break
-                } else {
-                    b.collide_h = 0
-                    b.x += dxx
-                }
-            }
-
-
-            sign = Math.sign(b.dy)
+            let sign = Math.sign(b.dy)
             let dy = Math.abs(b.dy + b.rem_y)
             b.rem_y = (dy % 1) * sign
 
@@ -565,46 +547,31 @@ class MapLoader extends Play {
         let ps = this.many(PlusChar)
 
         ps.forEach(pc => {
-            let sign = Math.sign(pc.dx)
-            let dx = Math.abs(pc.dx + pc.rem_x)
-            pc.rem_x = (dx % 1) * sign
-
-            for (let i = 0; i < dx; i++) {
-                let dxx = sign * Time.dt * h_accel
-                if (this.is_solid_xywh(pc, dxx, 0)) {
-                    pc.collide_h = sign
-                    pc.dx = -pc.dx
-                    break
-                } else {
-                    pc.collide_h = 0
-                    pc.x += dxx
-                }
-            }
-
             if (p) {
                 if (p.t_knock === undefined) {
                     if (p.falling && collide_rect(pc.hitbox, p.jumpbox)) {
                         pc.t_jumped = .3
-                        p.dy = -max_jump_dy * 1.6
+                        p.dy = -max_jump_dy * 1.3
                     } else if (collide_rect(pc.hitbox, p.hurtbox)) {
                         p.t_knock = .8
-                        p.dy = -max_jump_dy
-                        p.dx = (p.dx === 0 ? Math.sign(pc.dx) : -Math.sign(p.dx)) * max_dx * 2
+                        p.dy = -max_jump_dy * .8
+                        p.dx = (p.dx === 0 ? Math.sign(pc.dx) : -Math.sign(p.dx)) * max_dx * 2.5
                     }
                 }
             }
-
         })
-        
+
 
         ps.forEach(pc => {
-            let b = bs.find(b => collide_rect(pc.hitbox, b.hitbox))
+            let b = bs.filter(_ => !_.t_hit).find(b => collide_rect(pc.hitbox, b.hitbox))
             if (b) {
                 if (pc.damage === 0) {
                     pc.remove()
                 } else {
                     pc.t_hit = .2
-                    pc.dx = b.dx
+                    pc.dx = b.dx * 1.2
+                    pc.dy = -max_jump_dy * 0.2
+                    pc.make(OneTimeAnim, { name: 'bullet', tag: 'damage', duration: .4 })
                 }
                 b.t_hit = true
             }
@@ -660,6 +627,20 @@ class HasPosition extends Play {
     collide_h = 0
     collide_v = 0
 
+    facing: number = 1
+
+    get h_damping() {
+        return 1
+    }
+
+    get fall_damping() {
+        return 1
+    }
+
+    get v_smooth_damping() {
+        return 1
+    }
+
     get hitbox() {
         let { x, y, w, h } = this
         return { x: x - w / 2, y: y - h/ 2, w, h }
@@ -671,6 +652,16 @@ class HasPosition extends Play {
 
     _post_draw(g: Graphics) {
         g.pop()
+    }
+
+    update() {
+        if (this.dx !== 0) {
+           this.facing = Math.sign(this.dx)
+        }
+
+
+        super.update()
+
     }
 }
 
@@ -689,6 +680,11 @@ class PlusChar extends HasPosition {
     }
 
     _update() {
+
+        if (this.collide_h) {
+            this.dx = -1 * this.facing * max_dx / 2
+        }
+
         if (this.t_jumped !== undefined) {
             this.t_jumped = appr(this.t_jumped, 0, Time.dt)
 
@@ -709,10 +705,7 @@ class PlusChar extends HasPosition {
             if (this.t_hit === 0) {
                 this.t_hit = undefined
                 this.damage-=1
-                if (this.damage >= 1) {
-
-                    this.dx = Math.sign(this.dx) * max_dx / 2
-                }
+                this.dx = Math.sign(this.dx) * max_dx / 2
             }
         } else if (this.t_jumped !== undefined) {
             this.anim.scale_y = appr(this.anim.scale_y, 0.8, Time.dt * 1.8)
@@ -806,6 +799,7 @@ abstract class HasSteer extends HasPosition {
     }
 }
 
+*/
 
 type OneTimeAnimData = {
     name: string,
@@ -815,8 +809,15 @@ type OneTimeAnimData = {
     end_make?: [new(x: number, y: number) => Play, any]
 }
 
-// @ts-ignore
 class OneTimeAnim extends HasPosition {
+
+    get h_damping() {
+        return 0
+    }
+
+    get fall_damping() {
+        return 0
+    }
 
     get data() {
         return this._data as OneTimeAnimData
@@ -833,7 +834,7 @@ class OneTimeAnim extends HasPosition {
 
     _update() {
 
-        if (this.life > this.duration) {
+        if (this.life >= this.duration) {
             this.data.on_end?.()
             if (this.data.end_make) {
                 let [ctor, data] = this.data.end_make
@@ -844,6 +845,7 @@ class OneTimeAnim extends HasPosition {
     }
 }
 
+/*
 // @ts-ignore
 class OneChar extends HasSteer {
 
@@ -960,7 +962,19 @@ class Player extends HasPosition {
         return this.pre_y < this.y
     }
 
-    facing: number = 1
+    get h_damping() {
+        let v_damping = this.dy === 0 ? 1 : 0.8
+        let s_damping = this.shoot_cool > 0 ? 0.66 : 1
+
+        return v_damping * s_damping
+    }
+
+
+    get fall_damping() {
+        let shoot_damping = this.shoot_cool > 0 ? 0.36 : 1
+        return shoot_damping
+    }
+
 
     get grounded() {
         return this.collide_v > 0
@@ -980,11 +994,6 @@ class Player extends HasPosition {
             }
         }
 
-
-        if (this.dx !== 0) {
-           this.facing = Math.sign(this.dx)
-        }
-
         let is_left = i('ArrowLeft') || i('a')
         let is_right = i('ArrowRight') || i('d')
         let is_jump = i('ArrowUp') || i('w')
@@ -1002,7 +1011,6 @@ class Player extends HasPosition {
         } else {
             this.dx = appr(this.dx, 0, Time.dt * 66)
         }
-
 
 
         if (is_jump) {
@@ -1074,7 +1082,11 @@ class Player extends HasPosition {
             this.anim.play_tag('ledge')
         } else if (this.grounded) {
             if (this.dx !== 0) {
-                this.anim.play_tag('run')
+                if ((this.facing < 0 && is_right) || (this.facing > 0 && is_left)) {
+                    this.anim.play_tag('skid')
+                } else {
+                    this.anim.play_tag('run')
+                }
                 this.anim.scale_x = this.facing
             } else {
                 this.anim.play_tag('idle')
@@ -1101,7 +1113,7 @@ class Player extends HasPosition {
 
         if (!this.ledge_grab && !this.knoll_climb && is_shoot && this.shoot_cool === 0) {
 
-            let f = this.parent!.make(BulletFlash)
+            let f = this.parent!.make(OneTimeAnim, { name: 'bullet', tag: 'flash' + (Math.random() < 0.4 ? '2': ''), duration: .16 })
             f.x = this.x + this.dx
             f.y = this.y - Math.random() * 8
             f.anim.scale_x = this.facing
@@ -1110,7 +1122,6 @@ class Player extends HasPosition {
             _.x = this.x
             _.y = f.y
             _.dx = this.facing * max_dx * 2.5
-            //_.dy = is_up ? -Math.abs(_.dx) : 0
             _.anim.scale_x = Math.sign(_.dx)
             _.base_x = _.x
             _.distance_long = (this.dx === 0 ? 60 : 110) + Math.random() * 30
@@ -1138,9 +1149,17 @@ class Bullet extends HasPosition {
         return Math.abs(this.x - this.base_x)
     }
 
+    get fall_damping() {
+        return 0
+    }
+
+    get v_smooth_damping() {
+        return 0.1
+    }
+
     _init() {
         this.anim = this.make(Anim, { name: 'bullet', duration: .1 })
-        this.dy = (0.5 - Math.random()) * 4
+        this.dy = (1 - accuracy) * 2 * (0.5 - Math.random()) * (-max_jump_dy * 0.005)
     }
 
 
@@ -1151,7 +1170,7 @@ class Bullet extends HasPosition {
         }
 
         if (this.t_hit) {
-            let _ = this.parent!.make(BulletHit, { name: 'bullet', tag: 'hit' })
+            let _ = this.parent!.make(OneTimeAnim, { name: 'bullet', tag: 'hit', duration: .4 })
             _.x = this.x
             _.y = this.y
             _.anim.scale_x = this.anim.scale_x
@@ -1159,38 +1178,6 @@ class Bullet extends HasPosition {
         }
     }
 }
-
-
-class BulletFlash extends HasPosition {
-
-    _init() {
-        this.anim = this.make(Anim, { name: 'bullet', tag: 'flash' + (Math.random() < 0.4 ? '2': ''), duration: .16 })
-    }
-
-    _update() {
-
-        if (this.life >= .16) {
-            this.remove()
-        }
-    }
-}
-
-
-
-class BulletHit extends HasPosition {
-
-    _init() {
-        this.anim = this.make(Anim, { name: 'bullet', tag: 'hit', duration: .4 })
-    }
-
-    _update() {
-
-        if (this.life >= .4) {
-            this.remove()
-        }
-    }
-}
-
 
 const solid_tiles = [0, 1, 2, 3, 4, 5, 20, 21, 22, 23, 24, 40, 41, 42, 44, 60, 61, 62, 63, 64, 80, 81, 82, 83]
 const is_solid_n = (n: number) => solid_tiles.includes(n)
