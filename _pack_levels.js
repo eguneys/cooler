@@ -31,6 +31,7 @@ function extract_levels_ldtk({ name, json }) {
         let layer = level['layerInstances'][0]
         let w = layer['__cWid']
         let h = layer['__cHei']
+        let y = level['worldY']
         let tiles = layer['autoLayerTiles'].map(tile => {
             let px = tile['px']
             let src = tile['src']
@@ -38,7 +39,7 @@ function extract_levels_ldtk({ name, json }) {
             return { px, src }
         })
 
-        return { name: level.identifier, w, h, tiles }
+        return { name: level.identifier, y, w, h, tiles }
     })
 }
 
@@ -54,7 +55,7 @@ function condensed(json) {
     let { levels } = json
 
     return levels.map(_ => {
-        let { name, w, h, tiles } = _
+        let { name, y, w, h, tiles } = _
 
         let grouped_by_src = new Map()
 
@@ -96,7 +97,7 @@ function condensed(json) {
             })
         }
 
-        return { n: name, w, h, te: te.toString('base64')  }
+        return { n: name, y, w, h, te: te.toString('base64')  }
     })
 }
 

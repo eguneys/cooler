@@ -1,6 +1,8 @@
 import Content from './content'
 import { Anim } from './play'
 
+type XYWH = { x: number, y: number, w: number, h: number }
+
 export type TextAlign = 'c'
 
 export function make_graphics(width: number, height: number, pixelated = true) {
@@ -42,6 +44,10 @@ export default class Graphics {
   clear() {
     let { ctx } = this
     ctx.clearRect(0, 0, this.width, this.height)
+  }
+
+  box({ x, y, w, h }: XYWH) {
+    this.fr(x, y, w, h, 'red')
   }
 
   fr(x: number, y: number, w: number, h: number, color: string) {

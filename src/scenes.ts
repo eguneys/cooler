@@ -14,13 +14,13 @@ const fall_max_accel_y = 2800
 const _G = 9.8
 
 
-let accuracy = 0
+let accuracy = 0.5
 
 function lerp(a: number, b: number, t = 0.1) {
     return (1 - t) * a + t * b
 }
 
-function appr(v: number, t: number, by: number) {
+function appr(v: number, t: number, by = Time.dt) {
     if (v < t) {
         return Math.min(v + by, t)
     } else if (v > t) {
@@ -144,48 +144,8 @@ class Intro extends Scene {
         this.song = a.play('song', true)
 
         this.map = this.make(MapLoader)
-        //this.bar = this.make(Bar)
     }
 }
-
-// @ts-ignore
-class Bar extends Play {
-    _init() {
-        for (let i = 0; i < 3; i++) {
-            let _ = this.make(Anim, { name: 'bar' })
-            _.x = 320 / 2 - 80 + (i * 80)
-            _.y = 15
-        }
-        let e1 = this.make(Anim, { name: 'bar', tag: 'end' })
-        e1.x = 320 / 2 - 80 - 20
-        e1.y = 15
-        let e2 = this.make(Anim, { name: 'bar', tag: 'end' })
-        e2.x = 320 / 2 - 80 + 80 * 2 + 20
-        e2.y = 15
-        e2.scale_x = -1
-
-        let m = this.make(Anim, { name: 'bar', tag: 'middle' })
-        m.x = 320 / 2
-        m.y = 15
-
-        this.thumb = this.make(Anim, { name: 'bar', tag: 'thumb' })
-        this.thumb.y = 25
-    }
-
-    thumb!: Anim
-
-    width = 0
-
-    _update() {
-        //this.width = Math.floor(Math.abs(Math.sin(this.life * 2 * Math.PI * .2)) * 27)
-        this.thumb.x = 320 / 2 - 80 - 40 + (this.width / 26) * 240
-    }
-
-    _pre_draw(g: Graphics) {
-        g.fr(35, 12, 260, 8, 'red')
-    }
-}
-
 
 class MapLoader extends Play {
 
@@ -206,6 +166,7 @@ class MapLoader extends Play {
     _init() {
 
         const l = Content.levels[0]
+        //const l = proc_gen_level()
 
         this.w = l.w
         this.h = l.h
@@ -229,7 +190,7 @@ class MapLoader extends Play {
             } else if (i_src === 398) {
                 //this.make(TwoSpawn, {}, px[0], px[1])
             } else if (i_src === 397) {
-                this.make(PlusSpawn, {}, px[0], px[1])
+                this.make(PlusChar, {}, px[0], px[1])
             } else {
                 this.tiles[y][x] = i_src
             }
@@ -320,7 +281,7 @@ class MapLoader extends Play {
             let s = this.get_solid_xywh(p, 0, 0) as [number, number]
 
             if (p.ledge_grab !== undefined) {
-                p.ledge_grab = appr(p.ledge_grab, 0, Time.dt)
+                p.ledge_grab = appr(p.ledge_grab, 0)
 
 
                 if (p.ledge_grab === 0) {
@@ -333,7 +294,7 @@ class MapLoader extends Play {
             }
 
             if (p.knoll_climb !== undefined) {
-                p.knoll_climb = appr(p.knoll_climb, 0, Time.dt)
+                p.knoll_climb = appr(p.knoll_climb, 0)
 
                 if (p.knoll_climb === 0) {
                     p.knoll_climb = undefined
@@ -370,10 +331,11 @@ class MapLoader extends Play {
             this.cam_x = Math.min(Math.max(0, this.cam_x), this.w * 8 - 320)
         }
 
-
         let pp = this.many(HasPosition)
+
         
         pp.forEach(p => {
+          {
             let sign = Math.sign(p.dx)
             let dx = Math.abs(p.dx + p.rem_x)
             p.rem_x = (dx % 1) * sign
@@ -391,10 +353,9 @@ class MapLoader extends Play {
                     p.x += dxx
                 }
             }
-        })
+          }
 
-
-        pp.forEach(p => {
+          {
             let G = _G
 
             {
@@ -436,113 +397,8 @@ class MapLoader extends Play {
                     }
                 }
             }
+          }
         })
-
-
-        let bs = this.many(Bullet)
-
-        /*
-        if (true) {
-            if (p) {
-
-                let leader = this.one(TwoChar)?.position ?? Vec2.zero
-                let c1s = this.many(OneChar)
-
-
-                c1s.forEach(c1 => {
-                    let b = bs.find(b => collide_rect(c1.hitbox, b.hitbox))
-                    if (b) {
-                        this.make(OneTimeAnim, {
-                            name: 'one_char',
-                            tag: 'hit',
-                            duration: .8,
-                        }, c1.x, c1.y)
-                        c1.remove()
-                        b.t_hit = true
-                        this.bar.width++
-
-                    }
-                })
-
-
-
-
-                c1s.forEach(c1 => {
-                    c1.set_behaviors([
-                        [SteerBehaviors.SeparationSteer(c1s.filter(_ => _ !== c1).map(_ => _.position)), 0.1],
-                        [SteerBehaviors.ArriveSteer(leader, p.position.y), 0.2],
-                        [SteerBehaviors.AvoidCircleSteer(Circle.make(p.position.x, p.position.y, 10)), 0.1],
-                    ])
-
-                })
-
-            }
-
-            if (p) {
-
-                let c2s = this.many(TwoChar)
-
-
-                c2s.forEach(c2 => {
-                    let b = bs.find(b => collide_rect(c2.hitbox, b.hitbox))
-                    if (b) {
-                        if (c2.damage === 0) {
-                            for (let i = 0; i < 2; i++)
-                                this.make(OneTimeAnim, {
-                                    name: 'two_char',
-                                    tag: 'split',
-                                    duration: .8,
-                                    end_make: [OneChar, {}]
-                                }, c2.x, c2.y)
-                            c2.remove()
-                        } else {
-                            c2.t_hit = .3
-                        }
-                        b.t_hit = true
-                    }
-                })
-
-                c2s.forEach(c2 => {
-                    if (c2.t_hit) {
-
-                        c2.set_behaviors([
-                            [SteerBehaviors.AvoidCircleSteer(Circle.make(p.x, p.y, 200)), 0.7],
-                            [SteerBehaviors.NoSteer, 0.3]
-                        ])
-                        c2.set_opts(c2.damage_opts)
-                    } else {
-                        c2.set_behaviors([
-                            [SteerBehaviors.SeparationSteer(c2s.filter(_ => _ !== c2).map(_ => _.position)), 0.1],
-                            [SteerBehaviors.ArriveSteer(p.position, 8), 0.2],
-                            [SteerBehaviors.ArriveSteer(Vec2.make(Math.abs(Math.sin(this.life * 0.2)) * this.w * 8, p.position.y), 8), 0.2],
-                            [SteerBehaviors.AvoidCircleSteer(Circle.make(p.x, p.y, 90)), 0.4]
-                        ])
-                        c2.set_opts(c2.normal_opts)
-                    }
-                })
-
-            }
-        }
-            */
-
-        bs.forEach(b => {
-            let sign = Math.sign(b.dy)
-            let dy = Math.abs(b.dy + b.rem_y)
-            b.rem_y = (dy % 1) * sign
-
-            for (let i = 0; i < dy; i++) {
-                let dyy = sign * Time.dt * h_accel
-                if (this.is_solid_xywh(b, dyy, 0)) {
-                    b.collide_v = sign
-                    b.dy = 0
-                    break
-                } else {
-                    b.collide_v = 0
-                    b.y += dyy
-                }
-            }
-        })
-
 
         let ps = this.many(PlusChar)
 
@@ -553,28 +409,46 @@ class MapLoader extends Play {
                         pc.t_jumped = .3
                         p.dy = -max_jump_dy * 1.3
                         a.play('jump0')
-                    } else if (collide_rect(pc.hitbox, p.hurtbox)) {
-                        p.t_knock = .8
-                        p.dy = -max_jump_dy * .8
-                        p.dx = (p.dx === 0 ? Math.sign(pc.dx) : -Math.sign(p.dx)) * max_dx * 2.5
-                        a.play('knock')
+                    } 
+
+
+                    if (pc.is_idle) {
+                        if (collide_rect(pc.eyebox, p.hitbox)) {
+                            pc.t_eye = .3
+                        }
+                        if (collide_rect(pc.earbox, p.hitbox)) {
+                            pc.t_ear = .2
+                        }
                     }
                 }
             }
         })
 
+        let wgfs = this.many(WGroFire)
+
+        /*
+        wgfs.forEach(wgf => {
+            if (collide_rect(wgf.hitbox, p.hurtbox)) {
+            }
+        })
+            */
+
+
+        let bs = this.many(Bullet)
 
         ps.forEach(pc => {
             let b = bs.filter(_ => !_.t_hit).find(b => collide_rect(pc.hitbox, b.hitbox))
             if (b) {
-                if (pc.damage === 0) {
-                    pc.remove()
-                } else {
+                if (pc.t_sleep === 0) {
                     pc.t_hit = .2
-                    pc.dx = b.dx * 1.2
-                    pc.dy = -max_jump_dy * 0.2
-                    pc.make(OneTimeAnim, { name: 'bullet', tag: 'damage', duration: .4 })
-                    a.play('damage' + Math.floor(Math.random() * 3))
+                    if (pc.t_eye > 0) {
+
+                    } else {
+                        pc.dx = b.dx * 1.2
+                        pc.dy = -max_jump_dy * 0.2
+                        a.play('damage' + Math.floor(Math.random() * 3))
+                        pc.make(OneTimeAnim, { name: 'bullet', tag: 'damage', duration: .4 })
+                    }
                 }
                 b.t_hit = true
             }
@@ -613,6 +487,8 @@ class MapLoader extends Play {
                 g.tile(tile, i * 8, j * 8)
             }
         }
+
+        //g.box(this.one(PlusChar)!.earbox)
     }
 }
 
@@ -670,144 +546,188 @@ class HasPosition extends Play {
 
 class PlusChar extends HasPosition {
 
-    t_jumped?: number
-    t_hit?: number
+    t_sleep = 0
+    t_jumped = 0
+    t_hit = 0
+    t_eye = 0
+    t_ear = 0
+    t_speed = 0
 
-    damage = 3
+    damage = 4
 
+    wgro_cool = 3
+    wgro_anim = 0
 
+    get earbox() {
+        let w = 50
+        let h = 4
+        let x = this.facing < 0 ? this.x + 8 : this.x - w - 8
+        let y = this.y
+        return { x, y, w, h }
+    }
+
+    get eyebox() {
+
+        let w = 80
+        let h = 4
+        let x = this.facing < 0 ? this.x - w - 8 : this.x + 8
+        let y = this.y
+
+        return { x, y, w, h }
+    }
+
+    get is_idle() {
+
+        return (this.t_hit + this.t_jumped + this.t_eye + this.t_ear) === 0
+    }
 
     _init() {
         this.anim = this.make(Anim, {name: 'plus_char'})
-        this.dx = max_dx /2
     }
 
     _update() {
 
         if (this.collide_h) {
-            this.dx = -1 * this.facing * max_dx / 2
+            this.facing = this.facing * -1
         }
 
-        if (this.t_jumped !== undefined) {
-            this.t_jumped = appr(this.t_jumped, 0, Time.dt)
-
-            if (this.t_jumped === 0) {
-                this.t_jumped = undefined
-            }
+        if (this.t_jumped) {
+            this.t_jumped = appr(this.t_jumped, 0)
         }
 
+       
+        if (this.t_sleep) {
+            this.t_sleep = appr(this.t_sleep, 0)
+            this.dx = 0
 
-        if (this.t_hit) {
-            this.anim.play_tag('damage')
-            this.t_hit = appr(this.t_hit, 0, Time.dt)
+            this.anim.play_tag('sleep')
+        } else if (this.t_hit) {
+            this.t_hit = appr(this.t_hit, 0)
 
-            this.dx = appr(this.dx, (this.damage < 1 ? 1 : -1) * Math.sign(this.dx) * max_dx / 2, Time.dt * 200)
-            this.anim.scale_y = appr(this.anim.scale_y, 1.2, Time.dt * 2)
-            this.anim.scale_x = appr(this.anim.scale_x, 0.8, Time.dt * 2)
+            if (this.t_eye > 0) {
+                this.dx = appr(this.dx, 0, Time.dt * 200)
+                this.anim.play_tag('cover_hit')
 
-            if (this.t_hit === 0) {
-                this.t_hit = undefined
-                this.damage-=1
-                this.dx = Math.sign(this.dx) * max_dx / 2
+                this.anim.x = this.t_hit * this.facing * -1 * 12
+            } else {
+
+                this.dx = appr(this.dx, (this.damage < 1 ? this.facing : -this.facing) * max_dx * 0.58, Time.dt * 200)
+
+                this.anim.play_tag('damage')
+                this.anim.scale_y = appr(this.anim.scale_y, 1.2, Time.dt * 2)
+                this.anim.scale_x = appr(this.anim.scale_x, 0.8, Time.dt * 2)
+
+                if (this.t_hit === 0) {
+                    this.damage -= 1
+
+                    if (this.damage < 0) {
+                        this.damage = 4
+                        this.t_sleep = 10
+                    }
+                }
             }
-        } else if (this.t_jumped !== undefined) {
+        } else if (this.t_jumped) {
             this.anim.scale_y = appr(this.anim.scale_y, 0.8, Time.dt * 1.8)
             this.anim.scale_x = appr(this.anim.scale_x, 1.2, Time.dt * 1.6)
             this.anim.play_tag('jumped')
+        } else if (this.t_eye) {
+            this.t_eye = appr(this.t_eye, 0)
+
+            this.dx = appr(this.dx, 0, Time.dt * 8)
+
+            if (this.wgro_cool > 0) {
+                this.wgro_cool = appr(this.wgro_cool, 0)
+            } else {
+                this.wgro_anim = 1
+                this.wgro_cool = 2 + Math.random()
+                let _ = this.parent.make(WGro, { }, this.x, this.y)
+                _.dx = this.facing
+            } 
+
+            if (this.wgro_anim) {
+                this.wgro_anim = appr(this.wgro_anim, 0)
+                this.anim.play_tag('wgro')
+            } else {
+              this.anim.play_tag('cover')
+            }
+        } else if (this.t_ear) {
+            this.t_ear = appr(this.t_ear, 0)
+
+
+            this.dx = appr(this.dx, 0, Time.dt * 8)
+
+            this.anim.play_tag('ear')
+
+
+            if (this.t_ear === 0) {
+                this.facing = this.facing * -1
+            }
+        } else if (this.t_speed) { 
+            this.t_speed = appr(this.t_speed, 0)
+
+
+
         } else {
 
-            this.anim.scale_y = appr(this.anim.scale_y, 1, Time.dt)
-            this.anim.scale_x = appr(this.anim.scale_x, 1, Time.dt)
+            this.dx = this.facing * max_dx * .58
+ 
             this.anim.play_tag('idle')
         }
-    }
-}
 
-class PlusSpawn extends HasPosition {
-    _init() {
-        this.parent!.make(PlusChar, {}, this.x, this.y)
-    }
-    _update() {
-        if (this.parent.many(PlusChar).length < 2) {
-            if (Time.on_interval(1)) {
-                this.parent!.make(PlusChar, {}, this.x, this.y)
-            }
+        if (!this.t_hit || !this.t_jumped) {
+            this.anim.scale_y = appr(this.anim.scale_y, 1)
+            this.anim.scale_x = appr(this.anim.scale_x, 1)
         }
+
+        //console.log(this.t_sleep, this.t_hit, this.t_eye, this.t_ear, this.t_jumped)
     }
 }
 
-/*
-// @ts-ignore
-class TwoSpawn extends HasPosition {
 
-    _init() {
-        this.parent!.make(TwoChar, {}, this.x, this.y)
-    }
+class WGro extends HasPosition {
+    
+    f_x = 0
+    t_cool = .16
 
     _update() {
-        if (this.parent.many(TwoChar).length < 5) {
-            if (Time.on_interval(1)) {
-                this.parent!.make(TwoChar, {}, this.x, this.y)
-            }
+        if (this.t_cool > 0) {
+            this.t_cool = appr(this.t_cool, 0)
+        }
+        if (this.t_cool === 0) {
+            this.t_cool = .16
+
+            let _ = this.parent.make(WGroFire, {}, this.x + this.f_x, this.y - 16)
+            _.dy = -max_jump_dy * .18
+
+            this.f_x += 8 * this.facing
+        }
+
+        if (this.life > 2.1) {
+            this.remove()
         }
     }
 }
-    */
 
+class WGroFire extends HasPosition {
 
-/*
-abstract class HasSteer extends HasPosition {
-
-    abstract opts: RigidOptions
-    readonly behaviors: WeightedBehavior[] = [
-        [SteerBehaviors.NoSteer, 1]
-    ]
-
-    public steer!: SteerBehaviors
-
-    is_lock_x?: boolean
-
-    init() {
-        this.steer = new SteerBehaviors(this.opts, this.behaviors)
-        return super.init()
+    _init() {
+        this.anim = this.make(Anim, { name: 'wgrofire', duration: .7 })
     }
 
-    set_behaviors(bs: WeightedBehavior[]) {
-        this.behaviors.length = 0
-        this.behaviors.push(...bs)
-    }
 
-    set_opts(opts: RigidOptions) {
-        this.steer.opts = opts
-    }
+    _update() { 
 
-    update() {
-
-        if (this.is_lock_x === undefined) {
-            this.steer.lock_force = Vec2.unit
-        } else if (this.is_lock_x) {
-            this.steer.lock_force = Vec2.make(1, 0)
-        } else {
-            this.steer.lock_force = Vec2.make(0, 1)
+        if (this.life > .7) {
+            this.remove()
         }
-
-
-        this.steer.update(Time.dt, Time.dt0)
-
-        let { x, y } = this.steer.position
-        this.x = x
-        this.y = y
-
-        super.update()
     }
 }
-
-*/
 
 type OneTimeAnimData = {
     name: string,
     tag?: string,
     duration?: number,
+    scale?: number,
     on_end?: () => void
     end_make?: [new(x: number, y: number) => Play, any]
 }
@@ -833,6 +753,7 @@ class OneTimeAnim extends HasPosition {
     _init() {
         let { name, tag } = this.data
         this.anim = this.make(Anim, { name, tag, duration: this.duration })
+        this.anim.scale_x = this.data.scale ?? 1
     }
 
     _update() {
@@ -847,89 +768,6 @@ class OneTimeAnim extends HasPosition {
         }
     }
 }
-
-/*
-// @ts-ignore
-class OneChar extends HasSteer {
-
-    readonly opts: RigidOptions = {
-        mass: 0.002,
-        air_friction: 0.99,
-        max_speed: 400,
-        max_force: 280,
-        x0: this.x,
-        y0: this.y
-    }
-
-    _init() {
-        this.anim = this.make(Anim, { name: 'one_char' })
-    }
-
-}
-
-// @ts-ignore
-class TwoChar extends HasSteer {
-
-    w = 32
-    h = 32
-    t_hit?: number
-
-    damage = 2
-
-    readonly normal_opts: RigidOptions = {
-        mass: 0.02,
-        air_friction: 0.98,
-        max_speed: 300,
-        max_force: 180,
-        x0: this.x,
-        y0: this.y
-    }
-
-    readonly damage_opts = {
-        mass: 0.001,
-        air_friction: 0.8,
-        max_speed: 5000,
-        max_force: 2000,
-        x0: this.x,
-        y0: this.y
-    }
-
-    readonly opts = this.normal_opts
-
-    _init() {
-        this.anim = this.make(Anim, { name: 'two_char' })
-
-        this.is_lock_x = true
-    }
-
-
-    _update(){ 
-
-        if (Time.on_interval(3)) {
-            if (this.is_lock_x !== undefined) {
-                this.is_lock_x = !this.is_lock_x
-            }
-        } 
-
-
-        if (this.t_hit) {
-            this.is_lock_x = undefined
-            this.anim.play_tag('damage')
-            this.t_hit = appr(this.t_hit, 0, Time.dt)
-
-
-            if (this.t_hit === 0) {
-                this.is_lock_x = true
-                this.t_hit = undefined
-                this.damage-=1
-            }
-        } else {
-            this.anim.play_tag('idle')
-        }
-    }
-
-}
-    */
 
 class Player extends HasPosition {
 
@@ -994,7 +832,7 @@ class Player extends HasPosition {
         }
 
         if (this.t_knock !== undefined) {
-            this.t_knock = appr(this.t_knock, 0, Time.dt)
+            this.t_knock = appr(this.t_knock, 0)
 
             if (this.t_knock === 0) {
                 this.t_knock = undefined
@@ -1063,11 +901,7 @@ class Player extends HasPosition {
                     this._double_jump_left = 0
 
                     a.play('jump' + (Math.random() < 0.3 ? '1': '2'))
-                    /*
-                    let _ = this.parent!.make(Fx, { name: 'fx_djump', duration: 0.4 })
-                    _.x = this.x
-                    _.y = this.y + 5
-                    */
+                    this.parent.make(OneTimeAnim, { name: 'fx', tag: 'djump', duration: .3 }, this.x, this.y + 5)
                 }
             }
         }
@@ -1083,7 +917,7 @@ class Player extends HasPosition {
 
         if (this._ground_counter !== undefined) {
             if (this._ground_counter > 0) {
-                this._ground_counter = appr(this._ground_counter, 0, Time.dt)
+                this._ground_counter = appr(this._ground_counter, 0)
 
                 if (this._ground_counter === 0) {
                     this._ground_counter = undefined
@@ -1122,8 +956,8 @@ class Player extends HasPosition {
             this.anim.scale_x = appr(this.anim.scale_x, this.facing * 0.8, Time.dt * 0.9)
             this.anim.scale_y = appr(this.anim.scale_y, 1.16, Time.dt * 0.9)
         } else {
-            this.anim.scale_x = appr(this.anim.scale_x, this.facing, Time.dt)
-            this.anim.scale_y = appr(this.anim.scale_y, 1, Time.dt)
+            this.anim.scale_x = appr(this.anim.scale_x, this.facing)
+            this.anim.scale_y = appr(this.anim.scale_y, 1)
         }
 
         if (!this.ledge_grab && !this.knoll_climb && is_shoot && this.shoot_cool === 0) {
@@ -1133,16 +967,14 @@ class Player extends HasPosition {
             f.y = this.y - Math.random() * 8
             f.anim.scale_x = this.facing
 
-            let _ = this.parent!.make(Bullet)
-            _.x = this.x
-            _.y = f.y
+            let _ = this.parent!.make(Bullet, {}, this.x, f.y)
             _.dx = this.facing * max_dx * 2.5
             _.anim.scale_x = Math.sign(_.dx)
             _.base_x = _.x
             _.distance_long = (this.dx === 0 ? 60 : 110) + Math.random() * 30
             this.shoot_cool = .2
         }
-        this.shoot_cool = appr(this.shoot_cool, 0, Time.dt)
+        this.shoot_cool = appr(this.shoot_cool, 0)
 
         this.pre_grounded = this.grounded
         this.pre_y = this.y
@@ -1191,10 +1023,7 @@ class Bullet extends HasPosition {
         }
 
         if (this.t_hit) {
-            let _ = this.parent!.make(OneTimeAnim, { name: 'bullet', tag: 'hit', duration: .4 })
-            _.x = this.x
-            _.y = this.y
-            _.anim.scale_x = this.anim.scale_x
+            this.parent!.make(OneTimeAnim, { name: 'bullet', tag: 'hit', duration: .4, scale: this.anim.scale_x }, this.x, this.y)
             this.remove()
         }
     }
@@ -1202,3 +1031,98 @@ class Bullet extends HasPosition {
 
 const solid_tiles = [0, 1, 2, 3, 4, 5, 20, 21, 22, 23, 24, 40, 41, 42, 44, 60, 61, 62, 63, 64, 80, 81, 82, 83]
 const is_solid_n = (n: number) => solid_tiles.includes(n)
+
+/*
+
+const i_random = (max: number) => Math.floor(Math.random() * max)
+const arr_random = <T>(arr: Array<T>) => arr[i_random(arr.length)]
+
+
+
+function proc_gen_level() {
+    let grid = Array(4)
+    for (let i = 0; i < 4; i++) {
+        grid[i] = Array(4).fill(0)
+    }
+
+    let j = 0
+    let i = i_random(4)
+    let t = 5
+
+    grid[j][i] = t
+
+    let ii = 0, jj = 0
+    while (true) {
+        if (t === 2) {
+            t = i_random(2) + 2
+        } else {
+            t = i_random(2) + 1
+        }
+
+        let u = i_random(5) + 1
+        if (u === 1 || u === 2) {
+            ii = 1
+            jj = 0
+        } else if (u === 3 || u === 4) {
+            ii = -1
+            jj = 0
+        } else if (u === 5) {
+            ii = 0
+            jj = 1
+        }
+        if (i + ii < 0 || i + ii > 3 || j + jj < 0 || j + jj > 3) {
+            ii = 0
+            jj = 1
+        }
+
+        if (jj === 1) {
+
+            if (j === 3) {
+                grid[j][i] = 7
+                break
+            }
+
+            if (grid[j][i] === 5) {
+                grid[j][i] = 6
+            } else if (grid[j][i] !== 4) {
+                grid[j][i] = 2
+            }
+        }
+
+        i = i + ii
+        j = j + jj
+
+
+        if (j > 0) {
+            let u = grid[j - 1][i]
+            if (u === 2 || 4 || 6) {
+                t = 4
+            }
+        }
+        if (grid[j][i] === 5 || grid[j][i] === 6) {
+            continue;
+        }
+
+        grid[j][i] = t
+    }
+
+    let te = []
+
+    for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+            let t = grid[j][i]
+            let l = arr_random(Content.get_levels_of_type(t))
+
+            te.push(...l.te.map((_: {px: [number, number], src: [number, number]}) => ({ px: [_.px[0] + i * 128, _.px[1] + j * 128], src: _.src })))
+
+        }
+    }
+    console.log(grid, te)
+
+    return {
+        w: 64,
+        h: 64,
+        te
+    }
+}
+    */

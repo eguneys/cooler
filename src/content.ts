@@ -3,6 +3,7 @@ import content_page0 from '../content/out_0.png'
 import content_con0 from '../content/out_0.con?raw'
 import levels_json from '../content/levels.con.json'
 
+//const content_page0 = 'out_0.png'
 
 function load_image(path: string): Promise<HTMLImageElement> {
   return new Promise(resolve => {
@@ -81,6 +82,7 @@ type LevelTile = { px: N2, src: N2 }
 
 type LevelInfo = {
   name: string,
+  y: number,
   w: number,
   h: number,
   te: LevelTile[]
@@ -123,15 +125,16 @@ function decon_levels(levels: any): LevelInfo[] {
 
   return levels.map((level: any) => {
 
-    let { n, w, h, te } = level
+    let { n, y,  w, h, te } = level
 
     return {
-      name: n, w, h, te: decode_level_data(te)
+      name: n, y, w, h, te: decode_level_data(te)
     }
   })
 }
 
 class Content {
+  
 
   image!: HTMLImageElement
   info!: ContentInfo[]
@@ -147,8 +150,12 @@ class Content {
 
 
     this.levels = decon_levels(levels_json)
-    console.log(this.levels)
   }
+
+  get_levels_of_type(t: number) {
+    return this.levels.filter(_ => _.y === t * 128)
+  }
+
 }
 
 export default new Content()

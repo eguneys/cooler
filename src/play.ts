@@ -201,6 +201,10 @@ export class Anim extends Play {
   }
 
   play_tag(tag: string) {
+    if (this.data.tag === tag) {
+      return
+    }
+
     this.data.tag = tag
     this._current_frame = 0
 
