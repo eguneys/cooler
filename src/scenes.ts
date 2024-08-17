@@ -243,7 +243,7 @@ class MapLoader extends Play {
         // p movement
         if (p) {
 
-            if (p && p.ledge_grab === undefined) {
+            if (p.ledge_grab === 0) {
                 let down_solid = this.is_solid_xywh(p, 0, 4)
                 let r_solid = !this.get_solid_xywh(p, 1, -8) ? this.get_solid_xywh(p, 1, 0) : undefined
                 let l_solid = !this.get_solid_xywh(p, -1, -8) ? this.get_solid_xywh(p, -1, 0) : undefined
@@ -262,7 +262,7 @@ class MapLoader extends Play {
                 }
             }
 
-            if (p && p.ledge_grab === undefined && p.knoll_climb === undefined) {
+            if (p.ledge_grab === 0 && p.knoll_climb === 0) {
                 let r_knoll = !this.get_solid_xywh(p, 1, -8) ? this.get_solid_xywh(p, 1, 0) : undefined
                 let l_knoll = !this.get_solid_xywh(p, -1, -8) ? this.get_solid_xywh(p, -1, 0) : undefined
 
@@ -280,30 +280,23 @@ class MapLoader extends Play {
 
             let s = this.get_solid_xywh(p, 0, 0) as [number, number]
 
-            if (p.ledge_grab !== undefined) {
+            if (p.ledge_grab) {
                 p.ledge_grab = appr(p.ledge_grab, 0)
 
 
                 if (p.ledge_grab === 0) {
-                    p.ledge_grab = undefined
-
-
                     p.y = s[1] - 8
                     p.dy = 0
                 }
             }
 
-            if (p.knoll_climb !== undefined) {
+            if (p.knoll_climb) {
                 p.knoll_climb = appr(p.knoll_climb, 0)
 
                 if (p.knoll_climb === 0) {
-                    p.knoll_climb = undefined
-
                     p.y = s[1] - 8
                     p.dy = 0
-
                 }
-            } else {
             }
 
             if (p.shoot_cool > 0) {
@@ -404,7 +397,7 @@ class MapLoader extends Play {
 
         ps.forEach(pc => {
             if (p) {
-                if (p.t_knock === undefined) {
+                if (p.t_knock === 0) {
                     if (p.falling && collide_rect(pc.hitbox, p.jumpbox)) {
                         pc.t_jumped = .3
                         p.dy = -max_jump_dy * 1.3
@@ -424,7 +417,7 @@ class MapLoader extends Play {
             }
         })
 
-        let wgfs = this.many(WGroFire)
+        //let wgfs = this.many(WGroFire)
 
         /*
         wgfs.forEach(wgf => {
@@ -774,13 +767,14 @@ class Player extends HasPosition {
     is_right = false
     is_left = false
 
-    ledge_grab?: number
-    knoll_climb?: number
+    ledge_grab = 0
+    knoll_climb = 0
 
-    t_knock?: number
+    t_knock = 0
 
     _up_counter?: number
     _ground_counter?: number
+
     _double_jump_left = 2
 
     shoot_cool = 0
@@ -831,12 +825,8 @@ class Player extends HasPosition {
             accuracy = Math.min(1, accuracy + 1 / 100)
         }
 
-        if (this.t_knock !== undefined) {
+        if (this.t_knock) {
             this.t_knock = appr(this.t_knock, 0)
-
-            if (this.t_knock === 0) {
-                this.t_knock = undefined
-            }
         }
 
         let is_left = i('ArrowLeft') || i('a')
@@ -865,19 +855,18 @@ class Player extends HasPosition {
         } else {
         }
 
-
         if (is_jump) {
             if (this._up_counter !== undefined) {
                 this._up_counter += Time.dt
             }
         } else {
             if (this._up_counter === undefined) {
-
                 this._up_counter = 0
             } else if (this._up_counter > 0) {
-                this._up_counter = -0.3
+                this._up_counter = -0.16
             }
         }
+        console.log(this._up_counter)
 
         if (this._up_counter !== undefined) {
             if (this._up_counter < 0) {
@@ -900,12 +889,11 @@ class Player extends HasPosition {
                     this._up_counter = undefined
                     this._double_jump_left = 0
 
-                    a.play('jump' + (Math.random() < 0.3 ? '1': '2'))
+                    a.play('jump' + (Math.random() < 0.3 ? '1' : '2'))
                     this.parent.make(OneTimeAnim, { name: 'fx', tag: 'djump', duration: .3 }, this.x, this.y + 5)
                 }
             }
         }
-
 
         if (this.grounded) {
             this._ground_counter = 0
@@ -918,16 +906,15 @@ class Player extends HasPosition {
         if (this._ground_counter !== undefined) {
             if (this._ground_counter > 0) {
                 this._ground_counter = appr(this._ground_counter, 0)
-
                 if (this._ground_counter === 0) {
                     this._ground_counter = undefined
                 }
             }
         }
 
-        if (this.t_knock !== undefined) {
+        if (this.t_knock) {
             this.anim.play_tag('knock')
-        } else if (this.ledge_grab !== undefined) {
+        } else if (this.ledge_grab) {
             this.anim.play_tag('ledge')
         } else if (this.grounded) {
             if (this.dx !== 0) {
