@@ -20,7 +20,7 @@ export function my_loop(cb: () => void) {
     Time.dt = Math.min(20, Math.max(16, last_t ? t - last_t : 16)) / 1000
     if (Time.t_slow > 0) {
       Time.t_slow -= Time.dt
-      Time.dt *= .3
+      Time.dt *= .5
     }
     last_t = t
     Time.time += Time.dt
