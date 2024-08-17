@@ -2,6 +2,7 @@ const Time = {
     dt0: 16,
     dt: 16,
     time: 0,
+    t_slow: 0,
     on_interval(interval: number, offset = 0) {
       let { dt, time } = this
 
@@ -17,6 +18,10 @@ export function my_loop(cb: () => void) {
   const step = (t: number) => {
     Time.dt0 = Time.dt
     Time.dt = Math.min(20, Math.max(16, last_t ? t - last_t : 16)) / 1000
+    if (Time.t_slow > 0) {
+      Time.t_slow -= Time.dt
+      Time.dt *= .3
+    }
     last_t = t
     Time.time += Time.dt
 

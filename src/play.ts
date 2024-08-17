@@ -93,7 +93,11 @@ export default abstract class Play {
     this._update()
   }
 
+  visible = true
   draw(graphics: Graphics) {
+    if (!this.visible) {
+      return
+    }
     this._pre_draw(graphics)
     this.objects.forEach(_ => _.draw(graphics))
     this._draw(graphics)

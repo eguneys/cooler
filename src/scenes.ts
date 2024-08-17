@@ -14,7 +14,7 @@ const fall_max_accel_y = 2800
 const _G = 9.8
 
 
-let accuracy = 0.5
+let accuracy = 0.2
 
 function lerp(a: number, b: number, t = 0.1) {
     return (1 - t) * a + t * b
@@ -145,6 +145,16 @@ class Intro extends Scene {
 
         this.map = this.make(MapLoader)
     }
+
+
+    _update() {
+        let p = this.map.one(Player)!
+
+        if (p.die_counter > 3) {
+
+            this.go(Intro)
+        }
+    }
 }
 
 class MapLoader extends Play {
@@ -238,91 +248,87 @@ class MapLoader extends Play {
 
     _update() {
 
-        let p = this.one(Player)
+        let p = this.one(Player)!
 
-        // p movement
-        if (p) {
+        if (p.ledge_grab === 0) {
+            let down_solid = this.is_solid_xywh(p, 0, 4)
+            let r_solid = !this.get_solid_xywh(p, 1, -8) ? this.get_solid_xywh(p, 1, 0) : undefined
+            let l_solid = !this.get_solid_xywh(p, -1, -8) ? this.get_solid_xywh(p, -1, 0) : undefined
+
+            // ledge grap
+            if (!down_solid) {
+                if (p.is_right && Array.isArray(r_solid)) {
+                    p.ledge_grab = .4
+                    p.x = r_solid[0]
+                    p.y = r_solid[1]
+                } else if (p.is_left && Array.isArray(l_solid)) {
+                    p.ledge_grab = .4
+                    p.x = l_solid[0] + 8
+                    p.y = l_solid[1]
+                }
+            }
+        }
+
+        if (p.ledge_grab === 0 && p.knoll_climb === 0) {
+            let r_knoll = !this.get_solid_xywh(p, 1, -8) ? this.get_solid_xywh(p, 1, 0) : undefined
+            let l_knoll = !this.get_solid_xywh(p, -1, -8) ? this.get_solid_xywh(p, -1, 0) : undefined
+
+            if (p.is_right && Array.isArray(r_knoll)) {
+                p.knoll_climb = .13
+                p.x = r_knoll[0]
+                p.y = r_knoll[1] - 1
+            } else if (p.is_left && Array.isArray(l_knoll)) {
+                p.knoll_climb = -.13
+                p.x = l_knoll[0] + 8
+                p.y = l_knoll[1] - 1
+            }
+        }
+
+
+        let s = this.get_solid_xywh(p, 0, 0) as [number, number]
+
+        if (p.ledge_grab) {
+            p.ledge_grab = appr(p.ledge_grab, 0)
+
 
             if (p.ledge_grab === 0) {
-                let down_solid = this.is_solid_xywh(p, 0, 4)
-                let r_solid = !this.get_solid_xywh(p, 1, -8) ? this.get_solid_xywh(p, 1, 0) : undefined
-                let l_solid = !this.get_solid_xywh(p, -1, -8) ? this.get_solid_xywh(p, -1, 0) : undefined
-
-                // ledge grap
-                if (!down_solid) {
-                    if (p.is_right && Array.isArray(r_solid)) {
-                        p.ledge_grab = .4
-                        p.x = r_solid[0]
-                        p.y = r_solid[1]
-                    } else if (p.is_left && Array.isArray(l_solid)) {
-                        p.ledge_grab = .4
-                        p.x = l_solid[0] + 8
-                        p.y = l_solid[1]
-                    }
-                }
+                p.y = s[1] - 8
+                p.dy = 0
             }
-
-            if (p.ledge_grab === 0 && p.knoll_climb === 0) {
-                let r_knoll = !this.get_solid_xywh(p, 1, -8) ? this.get_solid_xywh(p, 1, 0) : undefined
-                let l_knoll = !this.get_solid_xywh(p, -1, -8) ? this.get_solid_xywh(p, -1, 0) : undefined
-
-                if (p.is_right && Array.isArray(r_knoll)) {
-                    p.knoll_climb = .13
-                    p.x = r_knoll[0]
-                    p.y = r_knoll[1] - 1
-                } else if (p.is_left && Array.isArray(l_knoll)) {
-                    p.knoll_climb = -.13
-                    p.x = l_knoll[0] + 8
-                    p.y = l_knoll[1] - 1
-                }
-            }
-
-
-            let s = this.get_solid_xywh(p, 0, 0) as [number, number]
-
-            if (p.ledge_grab) {
-                p.ledge_grab = appr(p.ledge_grab, 0)
-
-
-                if (p.ledge_grab === 0) {
-                    p.y = s[1] - 8
-                    p.dy = 0
-                }
-            }
-
-            if (p.knoll_climb) {
-                p.knoll_climb = appr(p.knoll_climb, 0)
-
-                if (p.knoll_climb === 0) {
-                    p.y = s[1] - 8
-                    p.dy = 0
-                }
-            }
-
-            if (p.shoot_cool > 0) {
-                this.shake_dx = -1
-                this.shake_dy = -.2
-            }
-
-            if (this.cam_zone_x < (p.x - 8) - 30) {
-                this.cam_zone_x = (p.x - 8) - 30
-            }
-            if (this.cam_zone_x > (p.x + 8) + 30) {
-                this.cam_zone_x = (p.x + 8) + 30
-            }
-            if (this.cam_zone_y < (p.y - 8) - 30) {
-                this.cam_zone_y = (p.y - 8) - 30
-            }
-            if (this.cam_zone_y > (p.y + 8) + 30) {
-                this.cam_zone_y = (p.y + 8) + 30
-            }
-
-            let show_more = p.dx < 0 ? -170 : p.dx > 0 ? -150 : -160
-            this.cam_x = lerp(this.cam_x, this.cam_zone_x + show_more)
-            this.cam_y = lerp(this.cam_y, this.cam_zone_y - 90, 0.5)
-
-            this.cam_x = Math.min(Math.max(0, this.cam_x), this.w * 8 - 320)
         }
+
+        if (p.knoll_climb) {
+            p.knoll_climb = appr(p.knoll_climb, 0)
+
+            if (p.knoll_climb === 0) {
+                p.y = s[1] - 8
+                p.dy = 0
+            }
+        }
+
+        if (p.shoot_cool > 0) {
+            this.shake_dx = -1
+            this.shake_dy = -.2
+        }
+
+        if (this.cam_zone_x < (p.x - 8) - 30) {
+            this.cam_zone_x = (p.x - 8) - 30
+        }
+        if (this.cam_zone_x > (p.x + 8) + 30) {
+            this.cam_zone_x = (p.x + 8) + 30
+        }
+        if (this.cam_zone_y < (p.y - 8) - 30) {
+            this.cam_zone_y = (p.y - 8) - 30
+        }
+        if (this.cam_zone_y > (p.y + 8) + 30) {
+            this.cam_zone_y = (p.y + 8) + 30
+        }
+
+        let show_more = p.dx < 0 ? -170 : p.dx > 0 ? -150 : -160
+        this.cam_x = lerp(this.cam_x, this.cam_zone_x + show_more)
+        this.cam_y = lerp(this.cam_y, this.cam_zone_y - 90, 0.5)
+
+        this.cam_x = Math.min(Math.max(0, this.cam_x), this.w * 8 - 320)
 
         let pp = this.many(HasPosition)
 
@@ -396,12 +402,13 @@ class MapLoader extends Play {
         let ps = this.many(PlusChar)
 
         ps.forEach(pc => {
-            if (p) {
-                if (p.t_knock === 0) {
+            if (!p.is_dead) {
+                if (!p.t_knock) {
                     if (p.falling && collide_rect(pc.hitbox, p.jumpbox)) {
                         pc.t_jumped = .3
                         p.dy = -max_jump_dy * 1.3
                         a.play('jump0')
+                        pc.dy = -max_jump_dy * .3
                     } 
 
 
@@ -417,15 +424,19 @@ class MapLoader extends Play {
             }
         })
 
-        //let wgfs = this.many(WGroFire)
+        let wgfs = this.many(WGroFire)
 
-        /*
-        wgfs.forEach(wgf => {
-            if (collide_rect(wgf.hitbox, p.hurtbox)) {
-            }
-        })
-            */
+        if (!p.is_dead && !p.t_knock) {
+            wgfs.forEach(wgf => {
+                if (collide_rect(wgf.hitbox, p.hurtbox)) {
 
+                    Time.t_slow = 2.2
+                    p.t_knock = 2.2
+                    p.dy = - max_jump_dy * 1.1
+                    p.dx = p.facing * -1 * max_dx * 3
+                }
+            })
+        }
 
         let bs = this.many(Bullet)
 
@@ -771,13 +782,17 @@ class Player extends HasPosition {
     knoll_climb = 0
 
     t_knock = 0
+    
 
+    die_counter = -1
     _up_counter?: number
     _ground_counter?: number
 
     _double_jump_left = 2
 
     shoot_cool = 0
+
+    damage = 0
 
     pre_grounded = this.grounded
     pre_y = this.y
@@ -800,19 +815,25 @@ class Player extends HasPosition {
     get h_damping() {
         let v_damping = this.dy === 0 ? 1 : 0.8
         let s_damping = this.shoot_cool > 0 ? 0.66 : 1
+        let k_damping = this.t_knock ? 1.2 : 1
 
-        return v_damping * s_damping
+        return v_damping * s_damping * k_damping
     }
 
 
     get fall_damping() {
         let shoot_damping = this.shoot_cool > 0 ? 0.36 : 1
-        return shoot_damping
+        let knock_damping = this.t_knock ? .4 : 1
+        return shoot_damping * knock_damping
     }
 
 
     get grounded() {
         return this.collide_v > 0
+    }
+
+    get is_dead() {
+        return this.die_counter >= 0
     }
 
     _init() {
@@ -825,14 +846,31 @@ class Player extends HasPosition {
             accuracy = Math.min(1, accuracy + 1 / 100)
         }
 
+
         if (this.t_knock) {
             this.t_knock = appr(this.t_knock, 0)
+
+            if (this.t_knock === 0) {
+                if (this.damage === 0) {
+                    this.die_counter = 0
+                }
+            }
+        }
+        if (this.die_counter >= 0) {
+            this.die_counter += Time.dt
         }
 
         let is_left = i('ArrowLeft') || i('a')
         let is_right = i('ArrowRight') || i('d')
         let is_jump = i('ArrowUp') || i('w')
         let is_shoot = i(' ') || i('x')
+
+        if (this.is_dead || (this.t_knock && (this.damage === 0 || this.t_knock > 1.8))) {
+            is_left = false
+            is_right = false
+            is_jump = false
+            is_shoot = false
+        }
 
         this.is_left = is_left
         this.is_right = is_right
@@ -866,7 +904,6 @@ class Player extends HasPosition {
                 this._up_counter = -0.16
             }
         }
-        console.log(this._up_counter)
 
         if (this._up_counter !== undefined) {
             if (this._up_counter < 0) {
@@ -912,8 +949,15 @@ class Player extends HasPosition {
             }
         }
 
-        if (this.t_knock) {
-            this.anim.play_tag('knock')
+        if (this.is_dead) {
+            this.anim.play_tag('dead')
+        } else if (this.t_knock) {
+            if (this.damage === 0) {
+                this.anim.play_tag('die')
+            } else {
+                this.anim.play_tag('knock')
+                this.visible = this.t_knock % .26 < .1
+            }
         } else if (this.ledge_grab) {
             this.anim.play_tag('ledge')
         } else if (this.grounded) {
@@ -996,7 +1040,7 @@ class Bullet extends HasPosition {
 
         let r = (0.5 - Math.random()) * 2
 
-        this.dy = (1 - accuracy) * r * (-max_jump_dy * 0.016)
+        this.dy = (1 - accuracy) * r * (-max_jump_dy * 0.076)
 
         a.play('bullet' + (Math.abs(r) > 0.5 ? '0' : '1'))
 
@@ -1004,13 +1048,15 @@ class Bullet extends HasPosition {
 
 
     _update() {
-        this.anim.y += this.dy * Time.dt
+
+        //this.anim.y += this.dy * Time.dt
+
         if (this.distance > this.distance_long || this.collide_h !== 0) {
             this.t_hit = true
         }
 
         if (this.t_hit) {
-            this.parent!.make(OneTimeAnim, { name: 'bullet', tag: 'hit', duration: .4, scale: this.anim.scale_x }, this.x, this.y)
+            this.parent!.make(OneTimeAnim, { name: 'bullet', tag: 'hit', duration: .4, scale: this.anim.scale_x }, this.x + this.anim.x, this.y + this.anim.y)
             this.remove()
         }
     }
