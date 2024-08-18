@@ -16,20 +16,16 @@
     "preview": "pnpm build && vite preview --port=3000"
   },
   "devDependencies": {
-    "advpng-bin": "^7.0.0",
     "advzip-bin": "^2.0.0",
     "chokidar": "^3.6.0",
     "concurrently": "^8.2.2",
-    "http-server": "^14.1.1",
     "imagemin": "^9.0.0",
     "imagemin-advpng": "^6.0.0",
     "jspngopt": "^0.2.0",
     "rimraf": "^6.0.1",
-    "roadroller": "^2.1.0",
-    "rollup-plugin-sizes": "^1.0.6",
-    "terser": "^5.31.3",
+    "terser": "^5.31.6",
     "typescript": "^5.5.4",
-    "vite": "^5.3.5",
+    "vite": "^5.4.1",
     "vite-bundle-visualizer": "^1.2.1",
     "vite-plugin-imagemin": "^0.6.1"
   }
