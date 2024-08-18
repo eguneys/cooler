@@ -45,6 +45,7 @@ export function SceneManager(g: Graphics) {
     let scene: Scene
 
     const go = (scene_ctor: { new(x: number, y: number): Scene }) => {
+        scene?.song?.()
         scene = new scene_ctor(0, 0)
         scene._set_data({ g, go })
         scene.init()
@@ -193,13 +194,12 @@ class MapLoader extends Play {
             let x = px[0] / 8
             let y = px[1] / 8
 
-            let i_src = (src[1] / 8) * 20 + (src[0] / 8)
+            let i_src = (src[1] / 8) * 6 + (src[0] / 8)
+            console.log(src, i_src)
 
-            if (i_src === 399) {
+            if (i_src === 11) {
                 this.make(Player, {}, px[0], px[1])
-            } else if (i_src === 398) {
-                //this.make(TwoSpawn, {}, px[0], px[1])
-            } else if (i_src === 397) {
+            } else if (i_src === 17) {
                 this.make(PlusChar, {}, px[0], px[1])
             } else {
                 this.tiles[y][x] = i_src
@@ -427,15 +427,23 @@ class MapLoader extends Play {
         let wgfs = this.many(WGroFire)
 
         if (!p.is_dead && !p.t_knock) {
-            wgfs.forEach(wgf => {
-                if (collide_rect(wgf.hitbox, p.hurtbox)) {
+            let die = false
+            if (Math.floor(p.y) === this.h * 8 - p.h / 2) {
+                die = true
+            } else {
+                wgfs.forEach(wgf => {
+                    if (collide_rect(wgf.hitbox, p.hurtbox)) {
+                        die = true
 
-                    Time.t_slow = 2.2
-                    p.t_knock = 2.2
-                    p.dy = - max_jump_dy * 1.1
-                    p.dx = p.facing * -1 * max_dx * 3
-                }
-            })
+                    }
+                })
+            }
+            if (die) {
+                Time.t_slow = 2.2
+                p.t_knock = 2.2
+                p.dy = - max_jump_dy * 1.1
+                p.dx = p.facing * -1 * max_dx * 3
+            }
         }
 
         let bs = this.many(Bullet)
@@ -559,7 +567,7 @@ class PlusChar extends HasPosition {
 
     damage = 4
 
-    wgro_cool = 3
+    wgro_cool = .6
     wgro_anim = 0
 
     get earbox() {
@@ -643,7 +651,7 @@ class PlusChar extends HasPosition {
                 this.wgro_cool = appr(this.wgro_cool, 0)
             } else {
                 this.wgro_anim = 1
-                this.wgro_cool = 2 + Math.random()
+                this.wgro_cool = 1.6 + Math.random()
                 let _ = this.parent.make(WGro, { }, this.x, this.y)
                 _.dx = this.facing
             } 
@@ -1062,7 +1070,7 @@ class Bullet extends HasPosition {
     }
 }
 
-const solid_tiles = [0, 1, 2, 3, 4, 5, 20, 21, 22, 23, 24, 40, 41, 42, 44, 60, 61, 62, 63, 64, 80, 81, 82, 83]
+const solid_tiles = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 24, 25, 26, 27]
 const is_solid_n = (n: number) => solid_tiles.includes(n)
 
 /*

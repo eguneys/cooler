@@ -74,8 +74,8 @@ export default class Graphics {
     let dx = x - fx
     let dy = y - fy
 
-    let nx = (n % 20) * 8
-    let ny = Math.floor(n / 20) * 8
+    let nx = (n % 6) * 8
+    let ny = Math.floor(n / 6) * 8
 
     this.spr(dx, dy, sx + nx, sy + ny, 8, 8)
   }
