@@ -345,8 +345,12 @@ class MapLoader extends Play {
         }
 
         if (p.shoot_cool > 0) {
-            this.shake_dx = -1
-            this.shake_dy = -.2
+            if (this.shake_dx === 0) {
+                this.shake_dx = -1
+            }
+            if (this.shake_dy === 0) {
+                this.shake_dy = -.2
+            }
         }
 
         if (this.cam_zone_x < (p.x - 8) - 30) {
@@ -488,20 +492,29 @@ class MapLoader extends Play {
                 })
             }
             if (die) {
+                a.play('knock')
                 Time.t_slow = 2.2
                 p.t_knock = 2.2
                 p.dy = - max_jump_dy * 0.6
                 p.dx = p.facing * -1 * max_dx * 3.2
+                this.shake_dx = 8
+                this.shake_dy = 8
             }
         }
 
         let bs = this.many(Bullet)
+        console.log(this.shake_dy)
 
         ds.filter(_ => !_.is_open).forEach(d => {
             let b = bs.filter(_ => !_.t_hit).find(b => collide_rect(d.hitbox, b.hitbox))
             if (b) {
                b.t_hit = true
                if (b.data.has_key) {
+                   a.play('knock')
+                   a.play('jump0')
+                   a.play('jump1')
+                   this.shake_dx = 1
+                   this.shake_dy = 8
                    d.is_open = true
                    p.has_key = false
                }
@@ -531,17 +544,18 @@ class MapLoader extends Play {
 
 
         if (this.shake_dx !== 0) {
-            this.cam_shake_x = this.shake_dx * Math.sin(2 * Math.PI * 0.2 * this.life) 
-            this.cam_shake_x += this.shake_dx * Math.random() * 1
+            this.cam_shake_x = Math.sin(2 * Math.PI * 2 * this.life) * 2
+            this.cam_shake_x += Math.sin(2 * Math.PI * 2 * (this.life + this.shake_dx))
+            this.cam_shake_x += Math.random() * 2
         }
          if (this.shake_dy !== 0) {
-            this.cam_shake_y = this.shake_dy * Math.cos(2 * Math.PI * 100 * Time.dt)
-            this.cam_shake_y += this.shake_dy * Math.random()
+            this.cam_shake_y = Math.cos(2 * Math.PI * 1 * this.life + 1)
+            this.cam_shake_y += Math.random() * 2
         }
         
 
-        this.shake_dx = appr(this.shake_dx, 0, Time.dt * 100)
-        this.shake_dy = appr(this.shake_dy, 0, Time.dt * 100)
+        this.shake_dx = appr(this.shake_dx, 0, Time.dt * 10)
+        this.shake_dy = appr(this.shake_dy, 0, Time.dt * 10)
     }
 
     _pre_draw(g: Graphics) {
