@@ -156,8 +156,6 @@ export class Anim extends Play {
     return this.data.tag || 'idle'
   }
 
-  x = 0
-  y = 0
   scale_x = 1
   scale_y = 1
 

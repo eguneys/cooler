@@ -14,6 +14,7 @@ const fall_max_accel_y = 2800
 const _G = 9.8
 
 
+let checkpoint: [number, number] | undefined
 let accuracy = 0.2
 
 function lerp(a: number, b: number, t = 0.1) {
@@ -174,6 +175,25 @@ class MapLoader extends Play {
     shake_dx = 0
     shake_dy = 0
 
+    get visible_bounds() {
+        let x = Math.max(0, Math.floor((this.cam_x)))
+        let y = Math.max(0, Math.floor((this.cam_y)))
+
+        return { x, y, w: 320, h: 180 }
+    }
+
+    get visible_bound_tiles() {
+
+        let { x, y, w, h } = this.visible_bounds
+
+        x = Math.floor(x / 8)
+        y = Math.floor(y / 8)
+        let end_x = Math.min(this.w, Math.floor(x + w / 8 + 2))
+        let end_y = Math.min(this.h, Math.floor(y + h / 8 + 2))
+
+        return { x, y, end_x, end_y }
+    }
+
     _init() {
 
         const l = Content.levels[0]
@@ -197,9 +217,14 @@ class MapLoader extends Play {
             let i_src = (src[1] / 8) * 6 + (src[0] / 8)
 
             if (i_src === 11) {
+                if (checkpoint) {
+                    px = checkpoint
+                }
                 this.make(Player, {}, px[0], px[1])
             } else if (i_src === 17) {
                 this.make(PlusChar, {}, px[0], px[1])
+            } else if (i_src === 23) {
+                this.make(Door, {}, px[0], px[1])
             } else {
                 this.tiles[y][x] = i_src
             }
@@ -248,6 +273,21 @@ class MapLoader extends Play {
     _update() {
 
         let p = this.one(Player)!
+
+
+        let ds = this.many(Door)
+
+        let d = ds.find(d => collide_rect(d.hitbox, p.fubox))
+
+        if (d) {
+            if (d.is_open) {
+                checkpoint = [d.x, d.y + 8]
+            } else {
+                p.dx = 0
+                p.dy = 0
+            }
+        }
+
 
         if (p.ledge_grab === 0) {
             let down_solid = this.is_solid_xywh(p, 0, 4)
@@ -329,8 +369,7 @@ class MapLoader extends Play {
 
         this.cam_x = Math.min(Math.max(0, this.cam_x), this.w * 8 - 320)
 
-        let pp = this.many(HasPosition)
-
+        let pp = this.many(HasPosition).filter(_ => collide_rect(_, this.visible_bounds))
         
         pp.forEach(p => {
           {
@@ -492,14 +531,19 @@ class MapLoader extends Play {
 
     _draw(g: Graphics) {
 
-        for (let i = 0; i < this.w; i++) {
-            for (let j = 0; j < this.h; j++) {
+
+        let { x, y, end_x, end_y } = this.visible_bound_tiles
+
+
+        for (let i = x; i < end_x; i++) {
+            for (let j = y; j < end_y; j++) {
                 let tile = this.tiles[j][i]
                 g.tile(tile, i * 8, j * 8)
             }
         }
 
         //g.box(this.one(PlusChar)!.earbox)
+        //this.many(Door).forEach(_ => g.box(_.hitbox))
     }
 }
 
@@ -552,6 +596,25 @@ class HasPosition extends Play {
 
         super.update()
 
+    }
+}
+
+
+class Door extends HasPosition {
+
+    is_open = false
+
+    get hitbox() {
+        let { x, y, w, h } = super.hitbox
+
+        return { x: x + 4, y: y + 16, w, h }
+    }
+
+    w = 8
+    h = 32
+
+    _init() {
+        this.make(Anim, { name: 'door', s_origin: 'tl' }, -8, 0)
     }
 }
 
@@ -781,6 +844,12 @@ class OneTimeAnim extends HasPosition {
 }
 
 class Player extends HasPosition {
+
+    get fubox() {
+        let { x, y, w, h } = this.hitbox
+
+        return { x: x + this.dx + this.rem_x, y: y + this.dy + this.rem_y, w, h }
+    }
 
     is_right = false
     is_left = false
