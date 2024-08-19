@@ -213,6 +213,7 @@ export class Anim extends Play {
     this.__elapsed = 0
   }
 
+  loop = true
   __elapsed = 0
 
   _update() {
@@ -228,7 +229,9 @@ export class Anim extends Play {
       this.__elapsed -= duration_single_frame
 
       if (this._current_frame === d_from_to) {
-        this._current_frame = 0
+        if (this.loop) {
+          this._current_frame = 0
+        }
       } else {
         this._current_frame += 1
       }

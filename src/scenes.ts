@@ -440,6 +440,13 @@ class MapLoader extends Play {
         let ps = this.many(PlusChar)
 
         ps.forEach(pc => {
+            if (pc.has_key && pc.t_sleep > 0) {
+                pc.has_key = false
+                p.has_key = true
+            }
+        })
+
+        ps.forEach(pc => {
             if (!p.is_dead) {
                 if (!p.t_knock) {
                     if (p.falling && collide_rect(pc.hitbox, p.jumpbox)) {
@@ -485,6 +492,17 @@ class MapLoader extends Play {
         }
 
         let bs = this.many(Bullet)
+
+        ds.filter(_ => !_.is_open).forEach(d => {
+            let b = bs.filter(_ => !_.t_hit).find(b => collide_rect(d.hitbox, b.hitbox))
+            if (b) {
+               b.t_hit = true
+               if (b.data.has_key) {
+                   d.is_open = true
+                   p.has_key = false
+               }
+            }
+        })
 
         ps.forEach(pc => {
             let b = bs.filter(_ => !_.t_hit).find(b => collide_rect(pc.hitbox, b.hitbox))
@@ -615,11 +633,20 @@ class Door extends HasPosition {
     h = 32
 
     _init() {
-        this.make(Anim, { name: 'door', s_origin: 'tl' }, -8, 0)
+        this.anim = this.make(Anim, { name: 'door', s_origin: 'tl' }, -8, 0)
+    }
+
+    _update() {
+        if (this.is_open) {
+            this.anim.play_tag('open')
+            this.anim.loop = false
+        }
     }
 }
 
 class PlusChar extends HasPosition {
+
+    has_key = true
 
     t_sleep = 0
     t_jumped = 0
@@ -845,6 +872,8 @@ class OneTimeAnim extends HasPosition {
 }
 
 class Player extends HasPosition {
+
+    has_key = true
 
     get fubox() {
         let { x, y, w, h } = this.hitbox
@@ -1081,7 +1110,7 @@ class Player extends HasPosition {
             f.y = this.y - Math.random() * 8
             f.anim.scale_x = this.facing
 
-            let _ = this.parent!.make(Bullet, {}, this.x, f.y)
+            let _ = this.parent!.make(Bullet, { has_key: this.has_key }, this.x, f.y)
             _.dx = this.facing * max_dx * 2.5
             _.anim.scale_x = Math.sign(_.dx)
             _.base_x = _.x
@@ -1097,7 +1126,15 @@ class Player extends HasPosition {
     }
 }
 
+type BulletData = {
+    has_key: boolean
+}
+
 class Bullet extends HasPosition {
+
+    get data() {
+        return this._data as BulletData
+    }
 
     w = 12
     h = 12
@@ -1119,7 +1156,7 @@ class Bullet extends HasPosition {
     }
 
     _init() {
-        this.anim = this.make(Anim, { name: 'bullet', duration: .1 })
+        this.anim = this.make(Anim, { name: 'bullet', tag: this.data.has_key ? 'key': 'idle', duration: .1 })
 
         let r = (0.5 - Math.random()) * 2
 
