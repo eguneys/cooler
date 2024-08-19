@@ -6,10 +6,10 @@ import a from './sound'
 import Time, { my_loop } from "./time"
 //import { RigidOptions, SteerBehaviors, WeightedBehavior } from './rigid'
 
-const v_accel = 80
+const v_accel = 3200
 const h_accel = 10
 const max_dx = 10
-const max_jump_dy = 800
+const max_jump_dy = 16
 const fall_max_accel_y = 2800
 const _G = 9.8
 
@@ -274,7 +274,6 @@ class MapLoader extends Play {
 
         let p = this.one(Player)!
 
-
         let ds = this.many(Door)
 
         let d = ds.find(d => collide_rect(d.hitbox, p.fubox))
@@ -373,14 +372,15 @@ class MapLoader extends Play {
         
         pp.forEach(p => {
           {
-            let sign = Math.sign(p.dx)
-            let dx = Math.abs(p.dx + p.rem_x)
-            p.rem_x = (dx % 1) * sign
 
             let h_damping = p.h_damping
+            let sign = Math.sign(p.dx)
+            let dx = Math.abs(p.dx + p.rem_x) * Time.dt * h_accel * h_damping
+            p.rem_x = (dx % 1) * sign
+
 
             for (let i = 0; i < dx; i++) {
-                let dxx = sign * Time.dt * h_accel * h_damping
+                let dxx = sign
                 if (this.is_solid_xywh(p, dxx, 0)) {
                     p.collide_h = sign
                     p.dx = 0
@@ -397,12 +397,12 @@ class MapLoader extends Play {
 
             {
                 let sign = Math.sign(p.dy)
-                let dy = Math.abs(p.dy + p.rem_y)
+                let dy = Math.abs(p.dy + p.rem_y) * 1/2 * Time.dt * Time.dt * v_accel
                 p.rem_y = (dy % 1) * sign
 
 
                 for (let di = 0; di < dy; di += 1) {
-                    let dyy = 1 / 2 * sign * Time.dt * Time.dt * v_accel
+                    let dyy = sign
                     if (this.is_solid_xywh(p, 0, dyy)) {
                         p.collide_v = sign
                         p.dy /= 2
@@ -418,12 +418,12 @@ class MapLoader extends Play {
             }
 
             let fall_damping = p.fall_damping
-            if (p.dy > -50) {
-                let dy = (fall_max_accel_y * G) * fall_damping
+            if (p.dy > -7) {
+                let dy = (fall_max_accel_y * G) * fall_damping * 1/2 * Time.dt * Time.dt
                 let sign = 1
 
                 for (let di = 0; di < dy; di += 1) {
-                    let dyy = 1 / 2 * sign * Time.dt * Time.dt
+                    let dyy = sign
                     if (this.is_solid_xywh(p, 0, dyy)) {
                         p.collide_v = sign
                         p.dy = 0
@@ -444,6 +444,7 @@ class MapLoader extends Play {
                 if (!p.t_knock) {
                     if (p.falling && collide_rect(pc.hitbox, p.jumpbox)) {
                         pc.t_jumped = .3
+
                         p.dy = -max_jump_dy * 1.3
                         a.play('jump0')
                         pc.dy = -max_jump_dy * .3
@@ -472,15 +473,14 @@ class MapLoader extends Play {
                 wgfs.forEach(wgf => {
                     if (collide_rect(wgf.hitbox, p.hurtbox)) {
                         die = true
-
                     }
                 })
             }
             if (die) {
                 Time.t_slow = 2.2
                 p.t_knock = 2.2
-                p.dy = - max_jump_dy * 1.1
-                p.dx = p.facing * -1 * max_dx * 3
+                p.dy = - max_jump_dy * 0.6
+                p.dx = p.facing * -1 * max_dx * 3.2
             }
         }
 
@@ -494,6 +494,7 @@ class MapLoader extends Play {
                     if (pc.t_eye > 0 && pc.wgro_anim === 0) {
 
                     } else {
+
                         pc.dx = b.dx * 1.2
                         pc.dy = -max_jump_dy * 0.2
                         a.play('damage' + Math.floor(Math.random() * 3))
