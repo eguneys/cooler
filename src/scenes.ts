@@ -195,7 +195,6 @@ class MapLoader extends Play {
             let y = px[1] / 8
 
             let i_src = (src[1] / 8) * 6 + (src[0] / 8)
-            console.log(src, i_src)
 
             if (i_src === 11) {
                 this.make(Player, {}, px[0], px[1])
@@ -453,7 +452,7 @@ class MapLoader extends Play {
             if (b) {
                 if (pc.t_sleep === 0) {
                     pc.t_hit = .2
-                    if (pc.t_eye > 0) {
+                    if (pc.t_eye > 0 && pc.wgro_anim === 0) {
 
                     } else {
                         pc.dx = b.dx * 1.2
@@ -580,7 +579,7 @@ class PlusChar extends HasPosition {
 
     get eyebox() {
 
-        let w = 80
+        let w = 70
         let h = 4
         let x = this.facing < 0 ? this.x - w - 8 : this.x + 8
         let y = this.y
@@ -616,7 +615,7 @@ class PlusChar extends HasPosition {
         } else if (this.t_hit) {
             this.t_hit = appr(this.t_hit, 0)
 
-            if (this.t_eye > 0) {
+            if (this.t_eye > 0 && this.wgro_anim === 0) {
                 this.dx = appr(this.dx, 0, Time.dt * 200)
                 this.anim.play_tag('cover_hit')
 
@@ -913,6 +912,7 @@ class Player extends HasPosition {
             }
         }
 
+
         if (this._up_counter !== undefined) {
             if (this._up_counter < 0) {
                 this._up_counter += Time.dt
@@ -922,15 +922,26 @@ class Player extends HasPosition {
             }
         }
 
+        if (this.grounded) {
+            this._ground_counter = 0
+        } else {
+            if (this._ground_counter !== -1) {
+                if (this.pre_grounded) {
+                    this._ground_counter = .16
+                }
+            }
+        }
+
         if (this._up_counter !== undefined) {
             if (this._up_counter > 0) {
-                if (this._ground_counter !== undefined) {
+                if (this._ground_counter !== undefined && this._ground_counter >= 0) {
                     this.dy = -max_jump_dy
                     this._up_counter = undefined
+                    this._ground_counter = -1
                     this._double_jump_left = 1
                     a.play('jump0')
                 } else if (this._double_jump_left > 0) {
-                    this.dy = -max_jump_dy
+                    this.dy = -max_jump_dy * .8
                     this._up_counter = undefined
                     this._double_jump_left = 0
 
@@ -940,13 +951,7 @@ class Player extends HasPosition {
             }
         }
 
-        if (this.grounded) {
-            this._ground_counter = 0
-        } else {
-            if (this.pre_grounded) {
-                this._ground_counter = .16
-            }
-        }
+        //console.log(this.grounded, this._ground_counter, this.dy, this.y)
 
         if (this._ground_counter !== undefined) {
             if (this._ground_counter > 0) {
