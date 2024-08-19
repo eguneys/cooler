@@ -176,10 +176,10 @@ class MapLoader extends Play {
     shake_dy = 0
 
     get visible_bounds() {
-        let x = Math.max(0, Math.floor((this.cam_x)))
-        let y = Math.max(0, Math.floor((this.cam_y)))
+        let x = Math.max(0, Math.floor((this.cam_x - 80)))
+        let y = Math.max(0, Math.floor((this.cam_y - 30)))
 
-        return { x, y, w: 320, h: 180 }
+        return { x, y, w: 320 + 160, h: 180 + 60 }
     }
 
     get visible_bound_tiles() {
@@ -280,7 +280,7 @@ class MapLoader extends Play {
 
         if (d) {
             if (d.is_open) {
-                checkpoint = [d.x, d.y + 8]
+                checkpoint = [d.x - 12, d.y + 8]
             } else {
                 p.dx = 0
                 p.dy = 0
@@ -373,8 +373,11 @@ class MapLoader extends Play {
         pp.forEach(p => {
           {
 
+            if (p.dx === 0) { p.rem_x = 0 }
+            if (p.dy === 0) { p.rem_y = 0 }
+
             let h_damping = p.h_damping
-            let sign = Math.sign(p.dx)
+            let sign = Math.sign(p.dx + p.rem_x)
             let dx = Math.abs(p.dx + p.rem_x) * Time.dt * h_accel * h_damping
             p.rem_x = (dx % 1) * sign
 
@@ -396,7 +399,7 @@ class MapLoader extends Play {
             let G = _G
 
             {
-                let sign = Math.sign(p.dy)
+                let sign = Math.sign(p.dy + p.rem_y)
                 let dy = Math.abs(p.dy + p.rem_y) * 1/2 * Time.dt * Time.dt * v_accel
                 p.rem_y = (dy % 1) * sign
 
@@ -406,6 +409,7 @@ class MapLoader extends Play {
                     if (this.is_solid_xywh(p, 0, dyy)) {
                         p.collide_v = sign
                         p.dy /= 2
+                        p.rem_y = 0
                         break
                     } else {
                         p.collide_v = 0
@@ -993,6 +997,7 @@ class Player extends HasPosition {
         } else if (is_right) {
             if (this.anim._tag !== 'skid' && this.dx < 0 && this.dx > -max_dx * 0.6) {
                 this.dx = 0
+                this.rem_x = 0
             }
             let accel = this.dx < 0 ? 40: 30
             this.dx = appr(this.dx, max_dx, Time.dt * accel)
