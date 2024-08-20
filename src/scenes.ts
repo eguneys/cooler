@@ -6,7 +6,7 @@ import a from './sound'
 import Time, { my_loop } from "./time"
 //import { RigidOptions, SteerBehaviors, WeightedBehavior } from './rigid'
 
-const v_accel = 3200
+const v_accel = 1800
 const h_accel = 10
 const max_dx = 10
 const max_jump_dy = 16
@@ -112,8 +112,8 @@ class MyScene extends Scene {
             180 / 2)
 
         a.generate().then(() => {
-            //this.go(AudioLoaded)
-            this.go(Intro)
+            this.go(AudioLoaded)
+            //this.go(Intro)
         })
     })
   }
@@ -503,7 +503,6 @@ class MapLoader extends Play {
         }
 
         let bs = this.many(Bullet)
-        console.log(this.shake_dy)
 
         ds.filter(_ => !_.is_open).forEach(d => {
             let b = bs.filter(_ => !_.t_hit).find(b => collide_rect(d.hitbox, b.hitbox))
@@ -707,10 +706,6 @@ class PlusChar extends HasPosition {
 
     _update() {
 
-        if (this.collide_h) {
-            this.facing = this.facing * -1
-        }
-
         if (this.t_jumped) {
             this.t_jumped = appr(this.t_jumped, 0)
         }
@@ -735,7 +730,7 @@ class PlusChar extends HasPosition {
 
                 this.anim.play_tag('damage')
                 this.anim.scale_y = appr(this.anim.scale_y, 1.2, Time.dt * 2)
-                this.anim.scale_x = appr(this.anim.scale_x, 0.8, Time.dt * 2)
+                this.anim.scale_x = appr(this.anim.scale_x, 0.8 * Math.sign(this.anim.scale_x), Time.dt * 2)
 
                 if (this.t_hit === 0) {
                     this.damage -= 1
@@ -747,8 +742,8 @@ class PlusChar extends HasPosition {
                 }
             }
         } else if (this.t_jumped) {
-            this.anim.scale_y = appr(this.anim.scale_y, 0.8, Time.dt * 1.8)
-            this.anim.scale_x = appr(this.anim.scale_x, 1.2, Time.dt * 1.6)
+            this.anim.scale_y = appr(this.anim.scale_y, 0.9, Time.dt * 1.8)
+            this.anim.scale_x = appr(this.anim.scale_x, 1.1 * Math.sign(this.anim.scale_x), Time.dt * 1.6)
             this.anim.play_tag('jumped')
         } else if (this.t_eye) {
             this.t_eye = appr(this.t_eye, 0)
@@ -784,10 +779,11 @@ class PlusChar extends HasPosition {
             }
         } else if (this.t_speed) { 
             this.t_speed = appr(this.t_speed, 0)
-
-
-
         } else {
+        if (this.collide_h) {
+            this.facing = this.facing * -1
+        }
+
 
             this.dx = this.facing * max_dx * .58
  
@@ -795,10 +791,13 @@ class PlusChar extends HasPosition {
         }
 
         if (!this.t_hit || !this.t_jumped) {
+            this.anim.scale_x = appr(this.anim.scale_x, Math.sign(this.anim.scale_x))
             this.anim.scale_y = appr(this.anim.scale_y, 1)
-            this.anim.scale_x = appr(this.anim.scale_x, 1)
         }
 
+        if (this.anim.scale_x * this.facing === -1) {
+            this.anim.scale_x *= -1
+        }
         //console.log(this.t_sleep, this.t_hit, this.t_eye, this.t_ear, this.t_jumped)
     }
 }
